@@ -11,14 +11,14 @@ pikostack tui        # Launch interactive terminal UI
 
 ## Features
 
-- **Dashboard**; live service grid, event feed, host CPU/MEM stats
-- **Services**; deploy, start, stop, restart any service type
-- **Auto-restart**; background goroutines watch health and restart on failure (configurable max attempts)
-- **Live logs**; WebSocket log streaming per service
-- **Analytics**; Chart.js CPU/memory charts, service uptime, status distribution
-- **TUI**; full Bubble Tea terminal interface with the same controls as the web UI
-- **Single binary**; templates and static assets embedded with `//go:embed`
-- **Config file**; `pikostack.yaml` with `PIKO_` env var overrides
+- **Dashboard**: live service grid, event feed, host CPU/MEM stats
+- **Services**: deploy, start, stop, restart any service type
+- **Auto-restart**: background goroutines watch health and restart on failure (configurable max attempts)
+- **Live logs**: WebSocket log streaming per service
+- **Analytics**: Chart.js CPU/memory charts, service uptime, status distribution
+- **TUI**: full Bubble Tea terminal interface with the same controls as the web UI
+- **Single binary**: templates and static assets embedded with `//go:embed`
+- **Config file**: `pikostack.yaml` with `PIKO_` env var overrides
 
 ---
 
@@ -125,14 +125,14 @@ WS     /ws/logs/:id        # live log stream
 
 ## Stack
 
-- **Go**; single binary, CGO for SQLite
-- **Gin**; HTTP API
-- **gorilla/websocket**; log streaming + event broadcast
-- **GORM + SQLite**; service/event/metrics persistence
-- **Viper + Cobra**; config + CLI
-- **Bubble Tea + Lip Gloss**; TUI
-- **HTMX + Alpine.js + Tailwind**; web UI (all CDN, no build step)
-- **Chart.js**; analytics charts
+- **Go**: single binary, CGO for SQLite
+- **Gin**: HTTP API
+- **gorilla/websocket**: log streaming + event broadcast
+- **GORM + SQLite**: service/event/metrics persistence
+- **Viper + Cobra**: config + CLI
+- **Bubble Tea + Lip Gloss**: TUI
+- **HTMX + Alpine.js + Tailwind**: web UI (all CDN, no build step)
+- **Chart.js**: analytics charts
 
 ---
 
