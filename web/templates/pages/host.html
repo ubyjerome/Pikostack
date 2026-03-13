@@ -1,0 +1,159 @@
+{{template "layouts/base.html" .}}
+{{define "content"}}
+{{$info := .HostInfo}}
+{{$stats := .Stats}}
+
+<div class="mb-6">
+  <h2 class="text-xl font-semibold text-white">Host</h2>
+  <p class="text-sm text-slate-400 mt-0.5">System information and resource usage</p>
+</div>
+
+<!-- Top stat cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div class="text-xs text-slate-500 mb-1">CPU Usage</div>
+    <div class="text-2xl font-bold text-white font-mono" id="cpu-val">{{index $stats "cpu"}}%</div>
+    <div class="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+      <div class="h-full bg-brand-600 rounded-full transition-all" style="width:{{index $stats "cpu"}}%"></div>
+    </div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div class="text-xs text-slate-500 mb-1">Memory</div>
+    <div class="text-2xl font-bold text-white font-mono">{{index $stats "mem_pct"}}%</div>
+    <div class="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+      <div class="h-full bg-violet-500 rounded-full transition-all" style="width:{{index $stats "mem_pct"}}%"></div>
+    </div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div class="text-xs text-slate-500 mb-1">Disk Usage</div>
+    <div class="text-2xl font-bold text-white font-mono">{{index $stats "disk_pct"}}%</div>
+    <div class="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+      <div class="h-full bg-sky-500 rounded-full transition-all" style="width:{{index $stats "disk_pct"}}%"></div>
+    </div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div class="text-xs text-slate-500 mb-1">Load Average</div>
+    <div class="text-2xl font-bold text-white font-mono">{{index $stats "load"}}</div>
+    <div class="text-xs text-slate-500 mt-2">1-minute avg</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- System info -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-800">
+      <h3 class="text-sm font-semibold text-white">System</h3>
+    </div>
+    <dl class="divide-y divide-slate-800/60">
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Hostname</dt>
+        <dd class="text-sm text-slate-200 font-mono truncate">{{index $info "hostname"}}</dd>
+      </div>
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">OS</dt>
+        <dd class="text-sm text-slate-200">{{index $info "os"}}</dd>
+      </div>
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Platform</dt>
+        <dd class="text-sm text-slate-200">{{index $info "platform"}} {{index $info "platform_version"}}</dd>
+      </div>
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Kernel</dt>
+        <dd class="text-sm text-slate-200 font-mono text-xs">{{index $info "kernel"}}</dd>
+      </div>
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Architecture</dt>
+        <dd class="text-sm text-slate-200 font-mono">{{index $info "arch"}}</dd>
+      </div>
+      {{if index $info "virtualization"}}
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Virtualization</dt>
+        <dd class="text-sm text-slate-200">{{index $info "virtualization"}}</dd>
+      </div>
+      {{end}}
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Processes</dt>
+        <dd class="text-sm text-slate-200 font-mono">{{index $info "procs"}}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <!-- CPU info -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-800">
+      <h3 class="text-sm font-semibold text-white">CPU</h3>
+    </div>
+    <dl class="divide-y divide-slate-800/60">
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Model</dt>
+        <dd class="text-sm text-slate-200 text-xs leading-relaxed">{{index $info "cpu_model"}}</dd>
+      </div>
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Cores</dt>
+        <dd class="text-sm text-slate-200 font-mono">{{index $info "cpu_cores"}}</dd>
+      </div>
+      <div class="px-5 py-3 grid grid-cols-2 gap-2">
+        <dt class="text-sm text-slate-400">Threads</dt>
+        <dd class="text-sm text-slate-200 font-mono">{{index $info "cpu_threads"}}</dd>
+      </div>
+    </dl>
+
+    <div class="px-5 py-4 border-t border-slate-800">
+      <h3 class="text-sm font-semibold text-white mb-3">Memory</h3>
+      <dl class="space-y-2">
+        <div class="flex justify-between text-sm">
+          <dt class="text-slate-400">Total</dt>
+          <dd class="text-slate-200 font-mono text-xs" id="mem-total">{{index $stats "mem_total"}}</dd>
+        </div>
+        <div class="flex justify-between text-sm">
+          <dt class="text-slate-400">Used</dt>
+          <dd class="text-slate-200 font-mono text-xs" id="mem-used">{{index $stats "mem_used"}}</dd>
+        </div>
+        <div class="mt-2 h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div class="h-full bg-violet-500 rounded-full transition-all" style="width:{{index $stats "mem_pct"}}%"></div>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Disk partitions -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden lg:col-span-2">
+    <div class="px-5 py-4 border-b border-slate-800">
+      <h3 class="text-sm font-semibold text-white">Disk Partitions</h3>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-800">
+            <th class="px-5 py-3 text-left text-xs text-slate-400 font-medium uppercase tracking-wider">Device</th>
+            <th class="px-5 py-3 text-left text-xs text-slate-400 font-medium uppercase tracking-wider">Mount</th>
+            <th class="px-5 py-3 text-left text-xs text-slate-400 font-medium uppercase tracking-wider">FS</th>
+            <th class="px-5 py-3 text-left text-xs text-slate-400 font-medium uppercase tracking-wider">Used</th>
+            <th class="px-5 py-3 text-left text-xs text-slate-400 font-medium uppercase tracking-wider w-40">Usage</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/50">
+          {{range index $info "partitions"}}
+          <tr class="hover:bg-slate-800/30 transition">
+            <td class="px-5 py-3 font-mono text-xs text-slate-300">{{index . "device"}}</td>
+            <td class="px-5 py-3 font-mono text-xs text-slate-300">{{index . "mountpoint"}}</td>
+            <td class="px-5 py-3 text-xs text-slate-400">{{index . "fstype"}}</td>
+            <td class="px-5 py-3 text-xs text-slate-300 font-mono">{{index . "pct"}}%</td>
+            <td class="px-5 py-3">
+              <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden w-full">
+                <div class="h-full rounded-full transition-all
+                            {{if gt (index . "pct") "80"}}bg-rose-500{{else if gt (index . "pct") "60"}}bg-amber-500{{else}}bg-sky-500{{end}}"
+                     style="width:{{index . "pct"}}%"></div>
+              </div>
+            </td>
+          </tr>
+          {{else}}
+          <tr><td colspan="5" class="px-5 py-8 text-center text-slate-500 text-sm">No partition data</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{{end}}

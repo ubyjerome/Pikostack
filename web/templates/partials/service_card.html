@@ -1,37 +1,29 @@
 {{define "partials/service_card.html"}}
-<div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 flex items-center justify-between hover:border-slate-600 transition group">
-  <div class="flex items-center gap-4 min-w-0">
-    <div class="relative flex-shrink-0">
-      <div class="w-9 h-9 rounded-lg bg-slate-700 flex items-center justify-center text-base">
-        {{typeIcon .Type | html}}
+<a href="/services/{{.ID}}"
+   class="block bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 hover:border-brand-600/40 hover:bg-slate-800/70 transition-all group">
+  <div class="flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="relative flex-shrink-0">
+        <div class="w-9 h-9 rounded-lg bg-slate-700/80 flex items-center justify-center text-base">
+          {{typeIcon .Type}}
+        </div>
+        <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 {{statusDot .Status}}
+                     {{if eq (typeStr .Status) "running"}}dot-blink{{end}}"></span>
       </div>
-      <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-800 {{statusDot .Status | html}}
-                   {{if eq (print .Status) "running"}}status-dot-blink{{end}}"></span>
+      <div class="min-w-0">
+        <div class="text-sm font-medium text-white truncate group-hover:text-brand-400 transition-colors">{{.Name}}</div>
+        <div class="flex items-center gap-1.5 mt-0.5">
+          <span class="text-xs text-slate-500">{{typeStr .Type}}</span>
+          {{if .Ports}}<span class="text-xs text-slate-600">· {{.Ports}}</span>{{end}}
+        </div>
+      </div>
     </div>
-    <div class="min-w-0">
-      <a href="/services/{{.ID}}"
-         class="text-sm font-medium text-white hover:text-brand-400 transition block truncate">{{.Name}}</a>
-      <div class="flex items-center gap-2 mt-0.5">
-        <span class="text-xs text-slate-500">{{.Type}}</span>
-        {{if .Ports}}<span class="text-xs text-slate-600">· {{.Ports}}</span>{{end}}
-        {{if .Project}}<span class="text-xs text-slate-600">· {{.Project.Name}}</span>{{end}}
-      </div>
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{statusBg .Status}}">
+        {{typeStr .Status}}
+      </span>
+      <svg class="w-4 h-4 text-slate-600 group-hover:text-brand-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
     </div>
   </div>
-  <div class="flex items-center gap-3 flex-shrink-0">
-    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{statusBg (print .Status) | html}}">
-      {{.Status}}
-    </span>
-    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-      <button onclick="serviceAction('{{.ID}}', 'restart')" title="Restart"
-              class="p-1.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-      </button>
-      <a href="/services/{{.ID}}" title="Details"
-         class="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700 rounded transition">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-      </a>
-    </div>
-  </div>
-</div>
+</a>
 {{end}}

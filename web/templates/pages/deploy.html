@@ -1,312 +1,215 @@
 {{template "layouts/base.html" .}}
-
 {{define "content"}}
 <div class="max-w-2xl mx-auto">
   <div class="mb-6">
     <h2 class="text-xl font-semibold text-white">Deploy Service</h2>
-    <p class="text-sm text-slate-400 mt-1">Register a new service or watchlist item with Pikostack</p>
+    <p class="text-sm text-slate-400 mt-0.5">Register a new service for Pikostack to manage</p>
   </div>
 
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
-
-    <!-- Type selector tabs -->
-    <div class="mb-6">
-      <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Service Type</label>
-      <div class="grid grid-cols-5 gap-2" id="type-tabs">
-<button type="button" onclick="selectType('docker')" id="tab-docker"
-        class="type-tab px-3 py-2.5 rounded-lg border text-xs font-medium transition text-center border-slate-700 text-slate-400 hover:border-brand-500/50 hover:text-slate-200">
-  <div class="text-lg mb-1">🐳</div>docker
-</button>
-<button type="button" onclick="selectType('compose')" id="tab-compose"
-        class="type-tab px-3 py-2.5 rounded-lg border text-xs font-medium transition text-center border-slate-700 text-slate-400 hover:border-brand-500/50 hover:text-slate-200">
-  <div class="text-lg mb-1">🐙</div>compose
-</button>
-<button type="button" onclick="selectType('process')" id="tab-process"
-        class="type-tab px-3 py-2.5 rounded-lg border text-xs font-medium transition text-center border-slate-700 text-slate-400 hover:border-brand-500/50 hover:text-slate-200">
-  <div class="text-lg mb-1">⚙</div>process
-</button>
-<button type="button" onclick="selectType('systemd')" id="tab-systemd"
-        class="type-tab px-3 py-2.5 rounded-lg border text-xs font-medium transition text-center border-slate-700 text-slate-400 hover:border-brand-500/50 hover:text-slate-200">
-  <div class="text-lg mb-1">🔧</div>systemd
-</button>
-<button type="button" onclick="selectType('url')" id="tab-url"
-        class="type-tab px-3 py-2.5 rounded-lg border text-xs font-medium transition text-center border-slate-700 text-slate-400 hover:border-brand-500/50 hover:text-slate-200">
-  <div class="text-lg mb-1">🌐</div>url
-</button>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <!-- Type selector -->
+    <div class="px-6 pt-6 pb-4 border-b border-slate-800">
+      <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Service Type</label>
+      <div class="grid grid-cols-3 sm:grid-cols-5 gap-2" id="type-buttons">
+        <button type="button" onclick="setType('docker')" data-type="docker"
+                class="type-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-brand-500/50 transition-all text-center">
+          <span class="text-2xl">🐳</span>
+          <span class="text-xs text-slate-400">docker</span>
+        </button>
+        <button type="button" onclick="setType('compose')" data-type="compose"
+                class="type-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-brand-500/50 transition-all text-center">
+          <span class="text-2xl">🐙</span>
+          <span class="text-xs text-slate-400">compose</span>
+        </button>
+        <button type="button" onclick="setType('process')" data-type="process"
+                class="type-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-brand-500/50 transition-all text-center">
+          <span class="text-2xl">⚙</span>
+          <span class="text-xs text-slate-400">process</span>
+        </button>
+        <button type="button" onclick="setType('systemd')" data-type="systemd"
+                class="type-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-brand-500/50 transition-all text-center">
+          <span class="text-2xl">🔧</span>
+          <span class="text-xs text-slate-400">systemd</span>
+        </button>
+        <button type="button" onclick="setType('url')" data-type="url"
+                class="type-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-brand-500/50 transition-all text-center">
+          <span class="text-2xl">🌐</span>
+          <span class="text-xs text-slate-400">url</span>
+        </button>
+        <button type="button" onclick="setType('static')" data-type="static"
+                class="type-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-brand-500/50 transition-all text-center">
+          <span class="text-2xl">📁</span>
+          <span class="text-xs text-slate-400">static</span>
+        </button>
       </div>
     </div>
 
-    <form id="deploy-form" onsubmit="submitDeploy(event)">
-      <input type="hidden" id="service-type" name="type" value="docker">
-
-      <div class="space-y-4">
-        <!-- Name -->
+    <!-- Form fields -->
+    <div class="px-6 py-5 space-y-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1.5">Service Name <span class="text-rose-400">*</span></label>
-          <input type="text" name="name" id="svc-name" required
-                 placeholder="my-api, postgres-db, nginx-proxy…"
-                 class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                        focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 outline-none placeholder-slate-600 transition">
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Service Name *</label>
+          <input type="text" id="svc-name" placeholder="my-service"
+                 class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none transition">
         </div>
-
-        <!-- Description -->
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
-          <input type="text" name="description"
-                 placeholder="Optional short description"
-                 class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                        focus:border-brand-500 outline-none placeholder-slate-600 transition">
-        </div>
-
-        <!-- Dynamic field — changes with type -->
-        <div id="type-fields">
-          <!-- Docker fields (default) -->
-          <div id="fields-docker" class="space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Docker Image <span class="text-rose-400">*</span></label>
-              <input type="text" name="image" placeholder="nginx:latest, postgres:16, myrepo/myapp:v1.2"
-                     class="type-input w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                            focus:border-brand-500 outline-none placeholder-slate-600 transition">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Container Name</label>
-              <input type="text" name="container_name" placeholder="Auto-filled from service name"
-                     class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                            focus:border-brand-500 outline-none placeholder-slate-600 transition">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1.5">Ports</label>
-                <input type="text" name="ports" placeholder="8080:80, 5432:5432"
-                       class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                              focus:border-brand-500 outline-none placeholder-slate-600 transition">
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1.5">Volumes</label>
-                <input type="text" name="volumes" placeholder="./data:/var/lib/data"
-                       class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                              focus:border-brand-500 outline-none placeholder-slate-600 transition">
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Environment Variables</label>
-              <textarea name="env_vars" rows="3"
-                        placeholder='{"DATABASE_URL": "postgres://...", "PORT": "8080"}'
-                        class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                               focus:border-brand-500 outline-none placeholder-slate-600 transition font-mono resize-none"></textarea>
-            </div>
-          </div>
-
-          <!-- Compose fields -->
-          <div id="fields-compose" class="hidden space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Compose File Path <span class="text-rose-400">*</span></label>
-              <input type="text" name="compose_file" placeholder="/opt/myapp/docker-compose.yml"
-                     class="type-input w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                            focus:border-brand-500 outline-none placeholder-slate-600 transition">
-            </div>
-          </div>
-
-          <!-- Process fields -->
-          <div id="fields-process" class="hidden space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Command <span class="text-rose-400">*</span></label>
-              <input type="text" name="command" placeholder="node server.js, ./bin/app --port 3000"
-                     class="type-input w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                            focus:border-brand-500 outline-none placeholder-slate-600 transition font-mono">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Working Directory</label>
-              <input type="text" name="working_dir" placeholder="/opt/myapp"
-                     class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                            focus:border-brand-500 outline-none placeholder-slate-600 transition font-mono">
-            </div>
-          </div>
-
-          <!-- Systemd fields -->
-          <div id="fields-systemd" class="hidden space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Systemd Unit <span class="text-rose-400">*</span></label>
-              <input type="text" name="systemd_unit" placeholder="nginx.service, myapp.service"
-                     class="type-input w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                            focus:border-brand-500 outline-none placeholder-slate-600 transition">
-            </div>
-          </div>
-
-          <!-- URL fields -->
-          <div id="fields-url" class="hidden space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Health URL <span class="text-rose-400">*</span></label>
-              <input type="url" name="health_url" placeholder="https://api.example.com/health"
-                     class="type-input w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                            focus:border-brand-500 outline-none placeholder-slate-600 transition">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1.5">HTTP Method</label>
-                <select name="health_method"
-                        class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5 outline-none">
-                  <option>GET</option>
-                  <option>HEAD</option>
-                  <option>POST</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1.5">Expected Status Code</label>
-                <input type="number" name="health_status_code" value="200"
-                       class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                              focus:border-brand-500 outline-none transition">
-              </div>
-            </div>
-            <div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 text-xs text-amber-300">
-              URL watchdog services are monitored only — Pikostack will not attempt to restart them on failure.
-            </div>
-          </div>
-        </div>
-
-        <!-- Health URL for docker/process (optional) -->
-        <div id="optional-health" class="border-t border-slate-800 pt-4">
-          <label class="block text-xs font-medium text-slate-400 mb-1.5">Health Check URL <span class="text-slate-600 font-normal">(optional)</span></label>
-          <input type="url" name="health_url_optional" placeholder="http://localhost:8080/health"
-                 class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5
-                        focus:border-brand-500 outline-none placeholder-slate-600 transition">
-          <p class="text-xs text-slate-600 mt-1">If set, Pikostack checks this URL to determine health instead of process state</p>
-        </div>
-
-        <!-- Options -->
-        <div class="border-t border-slate-800 pt-4 grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1.5">Project</label>
-            <select name="project_id"
-                    class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-4 py-2.5 outline-none">
-              <option value="">No project</option>
-              {{range .Projects}}
-              <option value="{{.ID}}">{{.Name}}</option>
-              {{end}}
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1.5">&nbsp;</label>
-            <label class="flex items-center gap-3 mt-2.5 cursor-pointer">
-              <input type="checkbox" name="auto_restart" checked
-                     class="w-4 h-4 accent-brand-600">
-              <span class="text-sm text-slate-300">Auto-restart on failure</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Submit -->
-        <div class="border-t border-slate-800 pt-5 flex items-center justify-between">
-          <a href="/services" class="text-sm text-slate-500 hover:text-slate-300 transition">Cancel</a>
-          <button type="submit" id="deploy-btn"
-                  class="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-            Deploy Service
-          </button>
+          <input type="text" id="svc-desc" placeholder="Optional"
+                 class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none transition">
         </div>
       </div>
-    </form>
+
+      <!-- process/systemd fields -->
+      <div id="field-command" class="hidden">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Command *</label>
+        <input type="text" id="svc-command" placeholder="npm run start"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+
+      <div id="field-workdir" class="hidden">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Working Directory</label>
+        <input type="text" id="svc-workdir" placeholder="/home/user/myapp"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+
+      <!-- docker fields -->
+      <div id="field-image" class="hidden">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Docker Image *</label>
+        <input type="text" id="svc-image" placeholder="nginx:latest"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+
+      <div id="field-ports" class="hidden">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Ports</label>
+        <input type="text" id="svc-ports" placeholder="8080:80, 443:443"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+
+      <!-- compose field -->
+      <div id="field-composefile" class="hidden">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Compose File Path *</label>
+        <input type="text" id="svc-composefile" placeholder="/home/user/app/docker-compose.yml"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+
+      <!-- static fields -->
+      <div id="field-staticdir" class="hidden">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Static Files Directory *</label>
+        <input type="text" id="svc-staticdir" placeholder="/home/user/myapp/dist"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+        <p class="text-xs text-slate-500 mt-1">Pikostack will serve these files over HTTP using Python's http.server</p>
+      </div>
+      <div id="field-staticport" class="hidden">
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Port</label>
+        <input type="number" id="svc-staticport" placeholder="8080" value="8080" min="1" max="65535"
+               class="w-32 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none transition">
+      </div>
+
+      <!-- health check -->
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Health Check URL <span class="text-slate-600">(optional)</span></label>
+        <input type="text" id="svc-health" placeholder="http://localhost:3000/health"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+        <p class="text-xs text-slate-500 mt-1">Pikostack pings this URL to determine health instead of process state</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5">Project</label>
+          <select id="svc-project"
+                  class="w-full bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none">
+            <option value="">No project</option>
+            {{range .Projects}}
+            <option value="{{.ID}}">{{.Name}}</option>
+            {{end}}
+          </select>
+        </div>
+        <div class="flex items-end pb-2.5">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" id="svc-autorestart" checked class="w-4 h-4 accent-brand-600">
+            <span class="text-sm text-slate-300">Auto-restart on failure</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-between gap-4">
+      <a href="/services" class="text-sm text-slate-500 hover:text-slate-300 transition">Cancel</a>
+      <button onclick="submitDeploy()"
+              class="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold rounded-lg transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        Deploy Service
+      </button>
+    </div>
   </div>
 </div>
 
 <script>
-let currentType = 'docker';
+let selectedType = 'process';
 
-function selectType(type) {
-  currentType = type;
-  document.getElementById('service-type').value = type;
+const fieldMap = {
+  docker:  ['field-image', 'field-ports', 'field-workdir'],
+  compose: ['field-composefile', 'field-workdir'],
+  process: ['field-command', 'field-workdir'],
+  systemd: ['field-command'],
+  url:     [],
+  static:  ['field-staticdir', 'field-staticport'],
+};
 
-  // Update tab styles
-  document.querySelectorAll('.type-tab').forEach(t => {
-    t.className = t.className.replace(/border-brand-\d+\/\d+ text-brand-\d+/, '');
-    t.classList.add('border-slate-700', 'text-slate-400');
-    t.classList.remove('border-brand-500', 'text-brand-400', 'bg-brand-600/10');
+function setType(t) {
+  selectedType = t;
+  // Update button styles
+  document.querySelectorAll('.type-btn').forEach(b => {
+    const isActive = b.dataset.type === t;
+    b.classList.toggle('border-brand-500', isActive);
+    b.classList.toggle('bg-brand-600/20', isActive);
+    b.classList.toggle('border-slate-700', !isActive);
+    b.classList.toggle('bg-slate-800/60', !isActive);
   });
-  const activeTab = document.getElementById(`tab-${type}`);
-  activeTab.classList.remove('border-slate-700', 'text-slate-400');
-  activeTab.classList.add('border-brand-500', 'text-brand-400', 'bg-brand-600/10');
-
-  // Show/hide field panels
-  ['docker', 'compose', 'process', 'systemd', 'url'].forEach(t => {
-    const el = document.getElementById(`fields-${t}`);
-    if (el) el.classList.toggle('hidden', t !== type);
+  // Show/hide fields
+  ['field-image','field-ports','field-workdir','field-command','field-composefile','field-staticdir','field-staticport'].forEach(f => {
+    document.getElementById(f).classList.add('hidden');
   });
-
-  // Hide optional health URL for URL type
-  const optHealth = document.getElementById('optional-health');
-  optHealth.classList.toggle('hidden', type === 'url');
+  (fieldMap[t] || []).forEach(f => document.getElementById(f).classList.remove('hidden'));
 }
 
-// Init
-selectType('docker');
-
-async function submitDeploy(e) {
-  e.preventDefault();
-  const form = e.target;
-  const btn = document.getElementById('deploy-btn');
-  btn.disabled = true;
-  btn.textContent = 'Deploying…';
-
-  const fd = new FormData(form);
-  const type = fd.get('type');
+async function submitDeploy() {
+  const name = document.getElementById('svc-name').value.trim();
+  if (!name) { window.dispatchEvent(new CustomEvent('toast',{detail:{msg:'Service name is required',type:'error'}})); return; }
 
   const payload = {
-    name: fd.get('name'),
-    description: fd.get('description') || '',
-    type: type,
-    project_id: fd.get('project_id') || '',
-    auto_restart: fd.has('auto_restart'),
-    watch_only: type === 'url',
+    name,
+    description:      document.getElementById('svc-desc').value,
+    type:             selectedType,
+    command:          document.getElementById('svc-command')?.value || '',
+    work_dir:         document.getElementById('svc-workdir')?.value || '',
+    image:            document.getElementById('svc-image')?.value || '',
+    ports:            document.getElementById('svc-ports')?.value || '',
+    compose_file:     document.getElementById('svc-composefile')?.value || '',
+    static_dir:       document.getElementById('svc-staticdir')?.value || '',
+    static_port:      parseInt(document.getElementById('svc-staticport')?.value || '8080'),
+    health_check_url: document.getElementById('svc-health').value,
+    project_id:       document.getElementById('svc-project').value || null,
+    auto_restart:     document.getElementById('svc-autorestart').checked,
+    watch_only:       selectedType === 'url',
   };
 
-  switch (type) {
-    case 'docker':
-      payload.image = fd.get('image');
-      payload.container_name = fd.get('container_name') || fd.get('name');
-      payload.ports = fd.get('ports');
-      payload.volumes = fd.get('volumes');
-      payload.env_vars = fd.get('env_vars');
-      payload.health_url = fd.get('health_url_optional') || '';
-      break;
-    case 'compose':
-      payload.compose_file = fd.get('compose_file');
-      payload.health_url = fd.get('health_url_optional') || '';
-      break;
-    case 'process':
-      payload.command = fd.get('command');
-      payload.working_dir = fd.get('working_dir');
-      payload.health_url = fd.get('health_url_optional') || '';
-      break;
-    case 'systemd':
-      payload.systemd_unit = fd.get('systemd_unit');
-      break;
-    case 'url':
-      payload.health_url = fd.get('health_url');
-      payload.health_method = fd.get('health_method');
-      payload.health_status_code = parseInt(fd.get('health_status_code')) || 200;
-      payload.auto_restart = false;
-      break;
-  }
-
-  try {
-    const res = await fetch('/api/v1/services', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (res.ok) {
-      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: `Service "${data.name}" deployed`, type: 'success' }}));
-      setTimeout(() => location.href = '/services', 1000);
-    } else {
-      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: data.error || 'Deploy failed', type: 'error' }}));
-      btn.disabled = false;
-      btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Deploy Service`;
-    }
-  } catch (e) {
-    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: e.message, type: 'error' }}));
-    btn.disabled = false;
+  const res = await fetch('/api/v1/services', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (res.ok) {
+    window.dispatchEvent(new CustomEvent('toast',{detail:{msg:`Service "${name}" deployed`,type:'success'}}));
+    setTimeout(() => location.href = '/services/' + data.id, 700);
+  } else {
+    window.dispatchEvent(new CustomEvent('toast',{detail:{msg:data.error||'Deploy failed',type:'error'}}));
   }
 }
+
+// Init default type
+setType('process');
 </script>
 {{end}}

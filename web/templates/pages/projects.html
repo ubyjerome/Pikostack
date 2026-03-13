@@ -1,0 +1,103 @@
+{{template "layouts/base.html" .}}
+{{define "content"}}
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <div>
+    <h2 class="text-xl font-semibold text-white">Projects</h2>
+    <p class="text-sm text-slate-400 mt-0.5">Group and manage related services</p>
+  </div>
+  <button onclick="document.getElementById('new-project-modal').classList.remove('hidden')"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    New Project
+  </button>
+</div>
+
+{{if .Projects}}
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+  {{range .Projects}}
+  <a href="/projects/{{.ID}}"
+     class="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-brand-600/40 hover:bg-slate-800/50 transition-all group block">
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl bg-brand-600/20 flex items-center justify-center flex-shrink-0">
+        <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+      </div>
+      <svg class="w-4 h-4 text-slate-600 group-hover:text-brand-400 transition-colors mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </div>
+    <h3 class="font-semibold text-white group-hover:text-brand-400 transition-colors">{{.Name}}</h3>
+    {{if .Description}}<p class="text-sm text-slate-400 mt-1 line-clamp-2">{{.Description}}</p>{{end}}
+    <div class="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
+      <span class="text-xs text-slate-500">{{len .Services}} service{{if ne (len .Services) 1}}s{{end}}</span>
+      <div class="flex -space-x-1">
+        {{range $i, $svc := .Services}}{{if lt $i 4}}
+        <span class="w-5 h-5 rounded-full border-2 border-slate-900 flex items-center justify-center text-xs {{statusDot $svc.Status}}"
+              title="{{$svc.Name}}"></span>
+        {{end}}{{end}}
+      </div>
+    </div>
+  </a>
+  {{end}}
+</div>
+{{else}}
+<div class="flex flex-col items-center justify-center py-24 text-center">
+  <div class="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
+    <svg class="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+  </div>
+  <h3 class="text-white font-semibold mb-1">No projects yet</h3>
+  <p class="text-slate-400 text-sm mb-6">Projects group your services together for easier management</p>
+  <button onclick="document.getElementById('new-project-modal').classList.remove('hidden')"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors">
+    Create your first project
+  </button>
+</div>
+{{end}}
+
+<!-- New project modal -->
+<div id="new-project-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-semibold text-white">New Project</h3>
+      <button onclick="document.getElementById('new-project-modal').classList.add('hidden')"
+              class="text-slate-500 hover:text-slate-300 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Project Name *</label>
+        <input type="text" id="proj-name" placeholder="my-app, backend, infra…"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none transition">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
+        <input type="text" id="proj-desc" placeholder="What does this project do?"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none transition">
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button onclick="document.getElementById('new-project-modal').classList.add('hidden')"
+                class="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-lg transition-colors">
+          Cancel
+        </button>
+        <button onclick="createProject()"
+                class="flex-1 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors">
+          Create Project
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function createProject() {
+  const name = document.getElementById('proj-name').value.trim();
+  const desc = document.getElementById('proj-desc').value.trim();
+  if (!name) { alert('Name is required'); return; }
+  const res = await fetch('/api/v1/projects', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, description: desc})
+  });
+  if (res.ok) { location.reload(); }
+  else { const d = await res.json(); alert(d.error || 'Failed'); }
+}
+</script>
+{{end}}

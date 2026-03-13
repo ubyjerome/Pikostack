@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/glebarez/sqlite"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -235,4 +235,15 @@ func (d *Database) GetUptimePercent(serviceID string, since time.Time) float64 {
 // Raw returns the underlying gorm.DB for advanced queries
 func (d *Database) Raw() *gorm.DB {
 	return d.db
+}
+
+func (d *Database) ListEventsByProject(projectID string, limit int) ([]ServiceEvent, error) {
+	var serviceIDs []string
+	d.db.Model(&Service{}).Where("project_id = ?", projectID).Pluck("id", &serviceIDs)
+	if len(serviceIDs) == 0 {
+		return []ServiceEvent{}, nil
+	}
+	var events []ServiceEvent
+	err := d.db.Where("service_id IN ?", serviceIDs).Order("created_at DESC").Limit(limit).Find(&events).Error
+	return events, err
 }

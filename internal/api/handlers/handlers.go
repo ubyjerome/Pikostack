@@ -8,20 +8,19 @@ import (
 	"github.com/spf13/viper"
 	"github.com/pikostack/pikostack/internal/config"
 	"github.com/pikostack/pikostack/internal/db"
+	"github.com/pikostack/pikostack/internal/monitor"
 )
+
+// ─── Pages ────────────────────────────────────────────────────────────────────
 
 func (h *Handler) PageDashboard(c *gin.Context) {
 	services, _ := h.db.ListServices()
 	summary, _ := h.db.GetServiceSummary()
 	events, _ := h.db.ListEvents("", 20)
 	stats := h.mon.GetSystemStats()
-
 	h.render(c, "pages/dashboard.html", gin.H{
-		"Title":    "Dashboard",
-		"Services": services,
-		"Summary":  summary,
-		"Events":   events,
-		"Stats":    stats,
+		"Title": "Dashboard", "Services": services,
+		"Summary": summary, "Events": events, "Stats": stats,
 	})
 }
 
@@ -29,9 +28,7 @@ func (h *Handler) PageServices(c *gin.Context) {
 	services, _ := h.db.ListServices()
 	projects, _ := h.db.ListProjects()
 	h.render(c, "pages/services.html", gin.H{
-		"Title":    "Services",
-		"Services": services,
-		"Projects": projects,
+		"Title": "Services", "Services": services, "Projects": projects,
 	})
 }
 
@@ -44,19 +41,40 @@ func (h *Handler) PageServiceDetail(c *gin.Context) {
 	}
 	events, _ := h.db.ListEvents(id, 50)
 	metrics, _ := h.db.ListMetrics(id, time.Now().Add(-24*time.Hour), 200)
+	projects, _ := h.db.ListProjects()
 	h.render(c, "pages/service_detail.html", gin.H{
-		"Title":   svc.Name,
-		"Service": svc,
-		"Events":  events,
-		"Metrics": metrics,
+		"Title": svc.Name, "Service": svc,
+		"Events": events, "Metrics": metrics, "Projects": projects,
+	})
+}
+
+func (h *Handler) PageProjects(c *gin.Context) {
+	projects, _ := h.db.ListProjects()
+	summary, _ := h.db.GetServiceSummary()
+	h.render(c, "pages/projects.html", gin.H{
+		"Title": "Projects", "Projects": projects, "Summary": summary,
+	})
+}
+
+func (h *Handler) PageProjectDetail(c *gin.Context) {
+	id := c.Param("id")
+	project, err := h.db.GetProject(id)
+	if err != nil {
+		c.Redirect(http.StatusFound, "/projects")
+		return
+	}
+	services, _ := h.db.ListServicesByProject(id)
+	events, _ := h.db.ListEventsByProject(id, 30)
+	h.render(c, "pages/project_detail.html", gin.H{
+		"Title": project.Name, "Project": project,
+		"Services": services, "Events": events,
 	})
 }
 
 func (h *Handler) PageDeploy(c *gin.Context) {
 	projects, _ := h.db.ListProjects()
 	h.render(c, "pages/deploy.html", gin.H{
-		"Title":    "Deploy",
-		"Projects": projects,
+		"Title": "Deploy", "Projects": projects,
 	})
 }
 
@@ -65,30 +83,42 @@ func (h *Handler) PageAnalytics(c *gin.Context) {
 	summary, _ := h.db.GetServiceSummary()
 	sysMetrics, _ := h.db.ListSystemMetrics(time.Now().Add(-24 * time.Hour))
 	h.render(c, "pages/analytics.html", gin.H{
-		"Title":      "Analytics",
-		"Services":   services,
-		"Summary":    summary,
+		"Title": "Analytics", "Services": services,
+		"Summary": summary, "SysMetrics": sysMetrics,
+	})
+}
+
+func (h *Handler) PageHost(c *gin.Context) {
+	info := h.mon.GetHostInfo()
+	stats := h.mon.GetSystemStats()
+	sysMetrics, _ := h.db.ListSystemMetrics(time.Now().Add(-6 * time.Hour))
+	h.render(c, "pages/host.html", gin.H{
+		"Title": "Host", "HostInfo": info, "Stats": stats,
 		"SysMetrics": sysMetrics,
+		"FmtBytes": monitor.FmtBytes,
+	})
+}
+
+func (h *Handler) PageAbout(c *gin.Context) {
+	h.render(c, "pages/about.html", gin.H{
+		"Title": "About",
 	})
 }
 
 func (h *Handler) PageSettings(c *gin.Context) {
 	projects, _ := h.db.ListProjects()
 	h.render(c, "pages/settings.html", gin.H{
-		"Title":    "Settings",
-		"Cfg":      h.cfg,
-		"Projects": projects,
+		"Title": "Settings", "Cfg": h.cfg, "Projects": projects,
 	})
 }
 
-// ─── HTMX Partials ───────────────────────────────────────────────────────────
+// ─── HTMX Partials ────────────────────────────────────────────────────────────
 
 func (h *Handler) HtmxDashboardStats(c *gin.Context) {
 	summary, _ := h.db.GetServiceSummary()
 	stats := h.mon.GetSystemStats()
 	h.renderPartial(c, "partials/dashboard_stats.html", gin.H{
-		"Summary": summary,
-		"Stats":   stats,
+		"Summary": summary, "Stats": stats,
 	})
 }
 
@@ -112,7 +142,7 @@ func (h *Handler) HtmxEventFeed(c *gin.Context) {
 	h.renderPartial(c, "partials/event_feed.html", events)
 }
 
-// ─── REST: Projects ──────────────────────────────────────────────────────────
+// ─── REST: Projects ───────────────────────────────────────────────────────────
 
 func (h *Handler) ListProjects(c *gin.Context) {
 	projects, err := h.db.ListProjects()
@@ -157,7 +187,7 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ─── REST: Services ──────────────────────────────────────────────────────────
+// ─── REST: Services ───────────────────────────────────────────────────────────
 
 func (h *Handler) ListServices(c *gin.Context) {
 	services, err := h.db.ListServices()
@@ -173,6 +203,9 @@ func (h *Handler) CreateService(c *gin.Context) {
 	if err := c.ShouldBindJSON(&svc); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+	if svc.ProjectID == "" || svc.ProjectID == "null" {
+		svc.ProjectID = ""
 	}
 	if err := h.db.CreateService(&svc); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -280,10 +313,7 @@ func (h *Handler) ListServiceMetrics(c *gin.Context) {
 func (h *Handler) AnalyticsOverview(c *gin.Context) {
 	summary, _ := h.db.GetServiceSummary()
 	events, _ := h.db.ListEvents("", 50)
-	c.JSON(http.StatusOK, gin.H{
-		"summary": summary,
-		"events":  events,
-	})
+	c.JSON(http.StatusOK, gin.H{"summary": summary, "events": events})
 }
 
 func (h *Handler) AnalyticsSystem(c *gin.Context) {
@@ -304,18 +334,16 @@ func (h *Handler) SystemStats(c *gin.Context) {
 	c.JSON(http.StatusOK, h.mon.GetSystemStats())
 }
 
-// ─── Settings API ─────────────────────────────────────────────────────────────
+func (h *Handler) HostInfo(c *gin.Context) {
+	c.JSON(http.StatusOK, h.mon.GetHostInfo())
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
 
 func (h *Handler) GetSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"server": gin.H{
-			"host":   h.cfg.Server.Host,
-			"port":   h.cfg.Server.Port,
-		},
-		"auth": gin.H{
-			"enabled":  h.cfg.Auth.Enabled,
-			"username": h.cfg.Auth.Username,
-		},
+		"server":   gin.H{"host": h.cfg.Server.Host, "port": h.cfg.Server.Port},
+		"auth":     gin.H{"enabled": h.cfg.Auth.Enabled, "username": h.cfg.Auth.Username},
 		"monitor": gin.H{
 			"interval":               h.cfg.Monitor.Interval.String(),
 			"grace_period":           h.cfg.Monitor.GracePeriod.String(),
@@ -323,9 +351,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 			"metrics_retention_days": h.cfg.Monitor.MetricsRetentionDays,
 			"events_retention_days":  h.cfg.Monitor.EventsRetentionDays,
 		},
-		"database": gin.H{
-			"path": h.cfg.Database.Path,
-		},
+		"database": gin.H{"path": h.cfg.Database.Path},
 	})
 }
 
@@ -344,15 +370,10 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 			Password string `json:"password"`
 		} `json:"auth"`
 	}
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	changed := false
-
-	// Monitor interval
 	if req.Monitor.Interval != "" {
 		d, err := time.ParseDuration(req.Monitor.Interval)
 		if err != nil {
@@ -365,9 +386,7 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 		}
 		h.cfg.Monitor.Interval = d
 		h.mon.ReloadInterval(d)
-		changed = true
 	}
-
 	if req.Monitor.GracePeriod != "" {
 		d, err := time.ParseDuration(req.Monitor.GracePeriod)
 		if err != nil {
@@ -375,25 +394,16 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 			return
 		}
 		h.cfg.Monitor.GracePeriod = d
-		changed = true
 	}
-
 	if req.Monitor.MaxRestarts > 0 {
 		h.cfg.Monitor.MaxRestarts = req.Monitor.MaxRestarts
-		changed = true
 	}
-
 	if req.Monitor.MetricsRetentionDays > 0 {
 		h.cfg.Monitor.MetricsRetentionDays = req.Monitor.MetricsRetentionDays
-		changed = true
 	}
-
 	if req.Monitor.EventsRetentionDays > 0 {
 		h.cfg.Monitor.EventsRetentionDays = req.Monitor.EventsRetentionDays
-		changed = true
 	}
-
-	// Auth settings
 	h.cfg.Auth.Enabled = req.Auth.Enabled
 	if req.Auth.Username != "" {
 		h.cfg.Auth.Username = req.Auth.Username
@@ -401,19 +411,10 @@ func (h *Handler) SaveSettings(c *gin.Context) {
 	if req.Auth.Password != "" {
 		h.cfg.Auth.Password = req.Auth.Password
 	}
-	changed = true
-
-	if changed {
-		if err := persistConfig(h.cfg); err != nil {
-			// Non-fatal: settings applied in memory, just warn
-			c.JSON(http.StatusOK, gin.H{
-				"status":  "applied",
-				"warning": "could not write to config file: " + err.Error(),
-			})
-			return
-		}
+	if err := persistConfig(h.cfg); err != nil {
+		c.JSON(http.StatusOK, gin.H{"status": "applied", "warning": "could not write config: " + err.Error()})
+		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"status": "saved"})
 }
 

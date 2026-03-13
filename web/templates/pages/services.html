@@ -1,141 +1,103 @@
 {{template "layouts/base.html" .}}
-
 {{define "content"}}
-<div class="flex items-center justify-between mb-6">
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
   <div>
     <h2 class="text-xl font-semibold text-white">All Services</h2>
     <p class="text-sm text-slate-400 mt-0.5">Manage deployed services and watchlists</p>
   </div>
-  <div class="flex gap-3">
-    <!-- Filter -->
-    <select id="status-filter" onchange="filterServices(this.value)"
-            class="bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:border-brand-500 outline-none">
-      <option value="">All status</option>
-      <option value="running">Running</option>
-      <option value="stopped">Stopped</option>
-      <option value="error">Error</option>
-    </select>
-    <a href="/deploy"
-       class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-      New Service
-    </a>
+  <a href="/deploy"
+     class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    New Service
+  </a>
+</div>
+
+{{if .Services}}
+<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-slate-800 text-xs text-slate-500 uppercase tracking-wider">
+          <th class="px-5 py-3 text-left font-medium">Service</th>
+          <th class="px-5 py-3 text-left font-medium hidden sm:table-cell">Type</th>
+          <th class="px-5 py-3 text-left font-medium">Status</th>
+          <th class="px-5 py-3 text-left font-medium hidden lg:table-cell">Project</th>
+          <th class="px-5 py-3 text-left font-medium hidden md:table-cell">Restarts</th>
+          <th class="px-5 py-3 text-right font-medium">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800/50">
+        {{range .Services}}
+        <tr class="hover:bg-slate-800/30 transition group">
+          <td class="px-5 py-3.5">
+            <a href="/services/{{.ID}}" class="flex items-center gap-3">
+              <div class="relative flex-shrink-0">
+                <span class="text-lg">{{typeIcon .Type}}</span>
+                <span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 {{statusDot .Status}}"></span>
+              </div>
+              <div>
+                <div class="font-medium text-white group-hover:text-brand-400 transition-colors">{{.Name}}</div>
+                {{if .Description}}<div class="text-xs text-slate-500 truncate max-w-48">{{.Description}}</div>{{end}}
+              </div>
+            </a>
+          </td>
+          <td class="px-5 py-3.5 hidden sm:table-cell">
+            <span class="inline-flex px-2 py-0.5 rounded-md text-xs font-medium font-mono {{typeBadge .Type}}">{{typeStr .Type}}</span>
+          </td>
+          <td class="px-5 py-3.5">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium {{statusBg .Status}}">
+              <span class="w-1.5 h-1.5 rounded-full {{statusDot .Status}}"></span>
+              {{typeStr .Status}}
+            </span>
+          </td>
+          <td class="px-5 py-3.5 text-xs text-slate-400 hidden lg:table-cell">
+            {{if .ProjectID}}
+            {{range $.Projects}}{{if eq .ID $.ProjectID}}
+              <a href="/projects/{{.ID}}" class="hover:text-brand-400 transition">{{.Name}}</a>
+            {{end}}{{end}}
+            {{else}}—{{end}}
+          </td>
+          <td class="px-5 py-3.5 text-xs font-mono text-slate-400 hidden md:table-cell">{{.RestartCount}}</td>
+          <td class="px-5 py-3.5 text-right">
+            <div class="flex items-center justify-end gap-1">
+              {{if eq (typeStr .Status) "stopped"}}
+              <button onclick="serviceAction('{{.ID}}','start')"
+                      class="p-1.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-400/10 rounded transition" title="Start">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </button>
+              {{else}}
+              <button onclick="serviceAction('{{.ID}}','stop')"
+                      class="p-1.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition" title="Stop">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </button>
+              {{end}}
+              <button onclick="serviceAction('{{.ID}}','restart')"
+                      class="p-1.5 text-slate-500 hover:text-brand-400 hover:bg-brand-400/10 rounded transition" title="Restart">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              </button>
+              <a href="/services/{{.ID}}"
+                 class="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700 rounded transition" title="View">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
   </div>
 </div>
-
-<!-- Services table -->
-<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="border-b border-slate-800">
-        <th class="px-5 py-3.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Service</th>
-        <th class="px-5 py-3.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Type</th>
-        <th class="px-5 py-3.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-        <th class="px-5 py-3.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Project</th>
-        <th class="px-5 py-3.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Restarts</th>
-        <th class="px-5 py-3.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Last Health</th>
-        <th class="px-5 py-3.5 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
-      </tr>
-    </thead>
-    <tbody id="services-tbody" class="divide-y divide-slate-800/60">
-      {{range .Services}}
-      <tr class="hover:bg-slate-800/30 transition service-row" data-status="{{.Status}}">
-        <td class="px-5 py-4">
-          <div class="flex items-center gap-3">
-            <span class="w-2 h-2 rounded-full flex-shrink-0 {{statusDot .Status | html}} {{if eq (print .Status) "running"}}status-dot-blink{{end}}"></span>
-            <div>
-              <a href="/services/{{.ID}}" class="font-medium text-white hover:text-brand-400 transition">{{.Name}}</a>
-              {{if .Description}}<p class="text-xs text-slate-500 mt-0.5">{{.Description}}</p>{{end}}
-            </div>
-          </div>
-        </td>
-        <td class="px-5 py-4">
-          <span class="inline-flex items-center gap-1.5 text-xs text-slate-400">
-            <span>{{typeIcon .Type | html}}</span>
-            {{.Type}}
-          </span>
-        </td>
-        <td class="px-5 py-4">
-          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{statusBg (print .Status) | html}}">
-            {{.Status}}
-          </span>
-        </td>
-        <td class="px-5 py-4 text-slate-400 text-xs">
-          {{if .Project}}{{.Project.Name}}{{else}}—{{end}}
-        </td>
-        <td class="px-5 py-4 text-slate-400 font-mono text-xs">{{.RestartCount}}</td>
-        <td class="px-5 py-4 text-slate-400 text-xs">
-          {{if .LastHealthAt}}
-            <span class="{{if .LastHealthOK}}text-emerald-400{{else}}text-rose-400{{end}}">
-              {{if .LastHealthOK}}✓ OK{{else}}✕ Fail{{end}}
-            </span>
-          {{else}}—{{end}}
-        </td>
-        <td class="px-5 py-4">
-          <div class="flex items-center justify-end gap-1">
-            <button onclick="serviceAction('{{.ID}}', 'start')"
-                    title="Start"
-                    class="p-1.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-400/10 rounded transition">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </button>
-            <button onclick="serviceAction('{{.ID}}', 'restart')"
-                    title="Restart"
-                    class="p-1.5 text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 rounded transition">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            </button>
-            <button onclick="serviceAction('{{.ID}}', 'stop')"
-                    title="Stop"
-                    class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 rounded transition">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
-            </button>
-            <a href="/services/{{.ID}}"
-               class="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700 rounded transition">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-            </a>
-          </div>
-        </td>
-      </tr>
-      {{else}}
-      <tr>
-        <td colspan="7" class="px-5 py-16 text-center">
-          <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center mx-auto mb-3">
-            <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2"/></svg>
-          </div>
-          <p class="text-slate-500 text-sm">No services yet</p>
-          <a href="/deploy" class="mt-3 inline-flex items-center gap-1 text-brand-400 text-sm hover:text-brand-300 transition">
-            Deploy your first service
-          </a>
-        </td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
+{{else}}
+<div class="flex flex-col items-center justify-center py-24 text-center">
+  <div class="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
+    <svg class="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/></svg>
+  </div>
+  <h3 class="text-white font-semibold mb-1">No services deployed</h3>
+  <p class="text-slate-400 text-sm mb-6">Deploy your first service to start monitoring it</p>
+  <a href="/deploy" class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Deploy Service
+  </a>
 </div>
-
-<script>
-function filterServices(status) {
-  document.querySelectorAll('.service-row').forEach(row => {
-    if (!status || row.dataset.status === status) {
-      row.style.display = '';
-    } else {
-      row.style.display = 'none';
-    }
-  });
-}
-
-async function serviceAction(id, action) {
-  try {
-    const res = await fetch(`/api/v1/services/${id}/${action}`, { method: 'POST' });
-    const data = await res.json();
-    if (res.ok) {
-      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: data.status || action, type: 'success' }}));
-      setTimeout(() => location.reload(), 800);
-    } else {
-      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: data.error || 'Action failed', type: 'error' }}));
-    }
-  } catch (e) {
-    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: e.message, type: 'error' }}));
-  }
-}
-</script>
+{{end}}
 {{end}}

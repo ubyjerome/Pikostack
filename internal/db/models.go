@@ -12,7 +12,8 @@ const (
 	ServiceTypeCompose  ServiceType = "compose"
 	ServiceTypeProcess  ServiceType = "process"
 	ServiceTypeSystemd  ServiceType = "systemd"
-	ServiceTypeURL      ServiceType = "url" // watchdog only, no restart
+	ServiceTypeURL      ServiceType = "url"    // watchdog only, no restart
+	ServiceTypeStatic   ServiceType = "static" // built-in static file server
 )
 
 // ServiceStatus is the last known health state
@@ -78,6 +79,10 @@ type Service struct {
 
 	// Systemd fields
 	SystemdUnit string `json:"systemd_unit,omitempty"`
+
+	// Static file server fields
+	StaticDir  string `json:"static_dir,omitempty"`
+	StaticPort int    `json:"static_port,omitempty"`
 
 	// URL watchdog fields
 	HealthURL        string `json:"health_url,omitempty"`

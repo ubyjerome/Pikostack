@@ -1,190 +1,428 @@
 {{template "layouts/base.html" .}}
-
 {{define "content"}}
 {{$svc := .Service}}
-<div class="mb-6 flex items-start justify-between">
-  <div class="flex items-center gap-4">
-    <a href="/services" class="text-slate-500 hover:text-slate-300 transition">
+
+<!-- Header -->
+<div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
+  <div class="flex items-center gap-4 min-w-0">
+    <a href="/services" class="text-slate-500 hover:text-slate-300 transition flex-shrink-0">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
     </a>
-    <div>
-      <div class="flex items-center gap-3">
-        <h2 class="text-xl font-semibold text-white">{{$svc.Name}}</h2>
-        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{statusBg (print $svc.Status) | html}}">
-          {{$svc.Status}}
+    <div class="relative flex-shrink-0">
+      <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">{{typeIcon $svc.Type}}</div>
+      <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-950 {{statusDot $svc.Status}}
+                   {{if eq (typeStr $svc.Status) "running"}}dot-blink{{end}}"></span>
+    </div>
+    <div class="min-w-0">
+      <h2 class="text-xl font-semibold text-white truncate">{{$svc.Name}}</h2>
+      <div class="flex items-center gap-2 mt-1 flex-wrap">
+        <span class="inline-flex px-2 py-0.5 rounded-md text-xs font-mono font-medium {{typeBadge $svc.Type}}">{{typeStr $svc.Type}}</span>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {{statusBg $svc.Status}}">
+          <span class="w-1.5 h-1.5 rounded-full {{statusDot $svc.Status}}"></span>
+          {{typeStr $svc.Status}}
         </span>
+        <span class="text-xs text-slate-500">{{$svc.RestartCount}} restart{{if ne $svc.RestartCount 1}}s{{end}}</span>
       </div>
-      <p class="text-sm text-slate-400 mt-0.5">{{typeIcon $svc.Type | html}} {{$svc.Type}} service</p>
     </div>
   </div>
-  <div class="flex gap-2">
-    <button onclick="serviceAction('{{$svc.ID}}', 'start')"
-            class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-600/30 rounded-lg text-sm transition">Start</button>
-    <button onclick="serviceAction('{{$svc.ID}}', 'restart')"
-            class="px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30 rounded-lg text-sm transition">Restart</button>
-    <button onclick="serviceAction('{{$svc.ID}}', 'stop')"
-            class="px-3 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-600/30 rounded-lg text-sm transition">Stop</button>
-    <button onclick="confirmDelete('{{$svc.ID}}')"
-            class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-sm transition">Delete</button>
+
+  <!-- Action buttons -->
+  <div class="flex items-center gap-2 flex-wrap flex-shrink-0">
+    {{if eq (typeStr $svc.Status) "stopped"}}
+    <button onclick="svcAction('start')"
+            class="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-600/30 text-sm font-medium rounded-lg transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Start
+    </button>
+    {{else}}
+    <button onclick="svcAction('stop')"
+            class="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30 text-sm font-medium rounded-lg transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Stop
+    </button>
+    {{end}}
+    <button onclick="svcAction('restart')"
+            class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-sm font-medium rounded-lg transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      Restart
+    </button>
+    <button onclick="openEdit()"
+            class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-sm font-medium rounded-lg transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      Edit
+    </button>
+    <button onclick="deleteSvc()"
+            class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 text-sm rounded-lg transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      Delete
+    </button>
   </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-  <!-- Config card -->
-  <div class="lg:col-span-1 space-y-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Configuration</h3>
-      <dl class="space-y-3">
-        {{if $svc.Image}}
-        <div>
-          <dt class="text-xs text-slate-500">Image</dt>
-          <dd class="text-sm text-slate-200 font-mono mt-0.5">{{$svc.Image}}</dd>
+  <!-- Left col: config + events -->
+  <div class="lg:col-span-2 space-y-5">
+
+    <!-- Config -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-800">
+        <h3 class="text-sm font-semibold text-white">Configuration</h3>
+      </div>
+      <dl class="divide-y divide-slate-800/50">
+        {{if $svc.Description}}
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-start">
+          <dt class="text-xs text-slate-500 pt-0.5">Description</dt>
+          <dd class="col-span-2 text-sm text-slate-200">{{$svc.Description}}</dd>
         </div>
         {{end}}
         {{if $svc.Command}}
-        <div>
-          <dt class="text-xs text-slate-500">Command</dt>
-          <dd class="text-sm text-slate-200 font-mono mt-0.5">{{$svc.Command}}</dd>
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-start">
+          <dt class="text-xs text-slate-500 pt-0.5">Command</dt>
+          <dd class="col-span-2 text-xs font-mono text-slate-200 bg-slate-800/60 px-2.5 py-1.5 rounded-lg break-all">{{$svc.Command}}</dd>
+        </div>
+        {{end}}
+        {{if $svc.WorkingDir}}
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-start">
+          <dt class="text-xs text-slate-500 pt-0.5">Working Dir</dt>
+          <dd class="col-span-2 text-xs font-mono text-slate-200 break-all">{{$svc.WorkingDir}}</dd>
+        </div>
+        {{end}}
+        {{if $svc.Image}}
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-start">
+          <dt class="text-xs text-slate-500 pt-0.5">Image</dt>
+          <dd class="col-span-2 text-xs font-mono text-slate-200">{{$svc.Image}}</dd>
         </div>
         {{end}}
         {{if $svc.Ports}}
-        <div>
-          <dt class="text-xs text-slate-500">Ports</dt>
-          <dd class="text-sm text-slate-200 font-mono mt-0.5">{{$svc.Ports}}</dd>
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-start">
+          <dt class="text-xs text-slate-500 pt-0.5">Ports</dt>
+          <dd class="col-span-2 text-xs font-mono text-slate-200">{{$svc.Ports}}</dd>
+        </div>
+        {{end}}
+        {{if $svc.ComposeFile}}
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-start">
+          <dt class="text-xs text-slate-500 pt-0.5">Compose File</dt>
+          <dd class="col-span-2 text-xs font-mono text-slate-200 break-all">{{$svc.ComposeFile}}</dd>
+        </div>
+        {{end}}
+        {{if $svc.SystemdUnit}}
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-start">
+          <dt class="text-xs text-slate-500 pt-0.5">Systemd Unit</dt>
+          <dd class="col-span-2 text-xs font-mono text-slate-200">{{$svc.SystemdUnit}}</dd>
         </div>
         {{end}}
         {{if $svc.HealthURL}}
-        <div>
-          <dt class="text-xs text-slate-500">Health URL</dt>
-          <dd class="text-sm text-slate-200 font-mono mt-0.5 break-all">{{$svc.HealthURL}}</dd>
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-start">
+          <dt class="text-xs text-slate-500 pt-0.5">Health URL</dt>
+          <dd class="col-span-2 text-xs font-mono text-slate-200 break-all">{{$svc.HealthURL}}</dd>
         </div>
         {{end}}
-        <div>
-          <dt class="text-xs text-slate-500">Auto Restart</dt>
-          <dd class="text-sm mt-0.5">
-            {{if $svc.AutoRestart}}
-            <span class="text-emerald-400">Enabled</span>
-            {{else}}
-            <span class="text-slate-500">Disabled</span>
-            {{end}}
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-center">
+          <dt class="text-xs text-slate-500">Auto-restart</dt>
+          <dd class="col-span-2">
+            <span class="inline-flex items-center gap-1.5 text-sm {{if $svc.AutoRestart}}text-emerald-400{{else}}text-slate-500{{end}}">
+              {{if $svc.AutoRestart}}
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              Enabled
+              {{else}}
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              Disabled
+              {{end}}
+            </span>
           </dd>
         </div>
-        <div>
-          <dt class="text-xs text-slate-500">Restart Count</dt>
-          <dd class="text-sm text-slate-200 font-mono mt-0.5">{{$svc.RestartCount}}</dd>
+        <div class="px-5 py-3 grid grid-cols-3 gap-3 items-center">
+          <dt class="text-xs text-slate-500">Service ID</dt>
+          <dd class="col-span-2 text-xs font-mono text-slate-600 select-all">{{$svc.ID}}</dd>
         </div>
-        {{if $svc.StartedAt}}
-        <div>
+      </dl>
+    </div>
+
+    <!-- Event log -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-white">Event Log</h3>
+        <span class="text-xs text-slate-600">{{len .Events}} events</span>
+      </div>
+      <div class="divide-y divide-slate-800/40 max-h-64 overflow-y-auto">
+        {{range .Events}}
+        <div class="px-5 py-2.5 flex items-start gap-3">
+          <span class="text-base leading-none flex-shrink-0 mt-0.5">{{eventIcon .Type}}</span>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm text-slate-300">{{.Message}}</div>
+            <div class="text-xs text-slate-600 mt-0.5 font-mono">{{.CreatedAt.Format "2006-01-02 15:04:05"}}</div>
+          </div>
+        </div>
+        {{else}}
+        <div class="px-5 py-10 text-center text-slate-600 text-sm">No events recorded yet</div>
+        {{end}}
+      </div>
+    </div>
+
+    <!-- Live logs — full width below config -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-white">Live Logs</h3>
+          <span id="log-status" class="text-xs text-slate-600">· disconnected</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="clearLogs()" class="text-xs text-slate-600 hover:text-slate-400 transition px-2 py-1">Clear</button>
+          <button id="log-btn" onclick="toggleLogs()"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600/20 hover:bg-brand-600/30 text-brand-400 border border-brand-600/30 text-xs font-medium rounded-lg transition-colors">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Connect
+          </button>
+        </div>
+      </div>
+      <div id="log-output"
+           class="p-4 h-64 overflow-y-auto bg-slate-950/60 font-mono text-xs text-slate-400 leading-relaxed">
+        <span class="text-slate-700">Waiting for connection…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right col: quick stats -->
+  <div class="space-y-5">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-800">
+        <h3 class="text-sm font-semibold text-white">Stats</h3>
+      </div>
+      <dl class="divide-y divide-slate-800/50">
+        <div class="px-5 py-3 flex justify-between items-center">
+          <dt class="text-xs text-slate-500">Status</dt>
+          <dd><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs {{statusBg $svc.Status}}">
+            <span class="w-1.5 h-1.5 rounded-full {{statusDot $svc.Status}}"></span>
+            {{typeStr $svc.Status}}
+          </span></dd>
+        </div>
+        <div class="px-5 py-3 flex justify-between items-center">
+          <dt class="text-xs text-slate-500">Restarts</dt>
+          <dd class="text-sm font-mono text-slate-200">{{$svc.RestartCount}}</dd>
+        </div>
+        <div class="px-5 py-3 flex justify-between items-center">
+          <dt class="text-xs text-slate-500">Last Health</dt>
+          <dd class="text-xs font-mono text-slate-400">
+            {{if $svc.LastHealthAt}}{{$svc.LastHealthAt.Format "Jan 2 15:04"}}{{else}}—{{end}}
+          </dd>
+        </div>
+        <div class="px-5 py-3 flex justify-between items-center">
           <dt class="text-xs text-slate-500">Started At</dt>
-          <dd class="text-sm text-slate-200 mt-0.5">{{$svc.StartedAt}}</dd>
+          <dd class="text-xs font-mono text-slate-400">
+            {{if $svc.StartedAt}}{{$svc.StartedAt.Format "Jan 2 15:04"}}{{else}}—{{end}}
+          </dd>
+        </div>
+        {{if $svc.ProjectID}}
+        <div class="px-5 py-3 flex justify-between items-center">
+          <dt class="text-xs text-slate-500">Project</dt>
+          <dd>{{range .Projects}}{{if eq .ID $svc.ProjectID}}
+            <a href="/projects/{{.ID}}" class="text-xs text-brand-400 hover:text-brand-300 transition">{{.Name}}</a>
+          {{end}}{{end}}</dd>
         </div>
         {{end}}
       </dl>
     </div>
-
-    <!-- Events -->
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Events</h3>
-      <div class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
-        {{range .Events}}
-        {{template "partials/event_row.html" .}}
-        {{else}}
-        <p class="text-slate-600 text-xs text-center py-4">No events</p>
-        {{end}}
-      </div>
-    </div>
   </div>
+</div>
 
-  <!-- Log viewer -->
-  <div class="lg:col-span-2">
-    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden h-full flex flex-col">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-slate-800">
-        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Live Logs</h3>
-        <div class="flex items-center gap-3">
-          <span id="log-status" class="flex items-center gap-1.5 text-xs text-slate-500">
-            <span class="w-1.5 h-1.5 rounded-full bg-slate-600" id="log-dot"></span>
-            disconnected
-          </span>
-          <button onclick="clearLogs()" class="text-xs text-slate-500 hover:text-slate-300 transition">Clear</button>
-          <label class="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" id="autoscroll" checked class="accent-brand-600"> Auto-scroll
-          </label>
-        </div>
+<!-- ── Edit Modal ──────────────────────────────────────────────────────── -->
+<div id="edit-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+      <h3 class="text-base font-semibold text-white">Edit Service</h3>
+      <button onclick="closeEdit()" class="text-slate-500 hover:text-slate-300 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Name</label>
+        <input type="text" id="e-name" value="{{$svc.Name}}"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none transition">
       </div>
-      <div id="log-output"
-           class="flex-1 p-4 font-mono text-xs text-slate-300 overflow-y-auto scrollbar-thin bg-slate-950 min-h-96 max-h-[600px] leading-relaxed">
-        <span class="text-slate-600">Connecting to log stream...</span>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
+        <input type="text" id="e-desc" value="{{$svc.Description}}"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none transition">
       </div>
+      {{if $svc.Command}}
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Command</label>
+        <input type="text" id="e-command" value="{{$svc.Command}}"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+      {{end}}
+      {{if or $svc.Command $svc.WorkingDir}}
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Working Directory</label>
+        <input type="text" id="e-workdir" value="{{$svc.WorkingDir}}"
+               placeholder="/home/user/myapp"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+      {{end}}
+      {{if eq (typeStr $svc.Type) "static"}}
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Static Files Directory</label>
+        <input type="text" id="e-staticdir" value="{{$svc.StaticDir}}"
+               placeholder="/home/user/myapp/dist"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Port</label>
+        <input type="number" id="e-staticport" value="{{if $svc.StaticPort}}{{$svc.StaticPort}}{{else}}8080{{end}}"
+               class="w-32 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none transition">
+      </div>
+      {{end}}
+      {{if $svc.HealthURL}}
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Health Check URL</label>
+        <input type="text" id="e-health" value="{{$svc.HealthURL}}"
+               class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2.5 font-mono focus:border-brand-500 outline-none transition">
+      </div>
+      {{end}}
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">Project</label>
+        <select id="e-project"
+                class="w-full bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2.5 focus:border-brand-500 outline-none">
+          <option value="">No project</option>
+          {{range .Projects}}
+          <option value="{{.ID}}" {{if eq .ID $svc.ProjectID}}selected{{end}}>{{.Name}}</option>
+          {{end}}
+        </select>
+      </div>
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" id="e-autorestart" {{if $svc.AutoRestart}}checked{{end}}
+               class="w-4 h-4 accent-brand-600">
+        <span class="text-sm text-slate-300">Auto-restart on failure</span>
+      </label>
+    </div>
+    <div class="flex gap-3 px-6 py-4 border-t border-slate-800">
+      <button onclick="closeEdit()"
+              class="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-lg transition-colors">
+        Cancel
+      </button>
+      <button onclick="saveEdit()"
+              class="flex-1 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors">
+        Save Changes
+      </button>
     </div>
   </div>
 </div>
 
 <script>
-const serviceId = '{{$svc.ID}}';
-const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-let ws;
+const SVC_ID = '{{$svc.ID}}';
+let logWs = null;
+let autoScroll = true;
 
-function connectLogs() {
-  ws = new WebSocket(`${wsProto}//${location.host}/ws/logs/${serviceId}`);
-  const output = document.getElementById('log-output');
-  const dot = document.getElementById('log-dot');
+// ── Service actions ─────────────────────────────────────────────────────────
+async function svcAction(action) {
+  try {
+    const res = await fetch('/api/v1/services/' + SVC_ID + '/' + action, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    toast(res.ok ? (data.status || action + 'd') : (data.error || 'Failed'), res.ok ? 'success' : 'error');
+    if (res.ok) setTimeout(() => location.reload(), 800);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteSvc() {
+  if (!confirm('Delete "{{$svc.Name}}"? This cannot be undone.')) return;
+  const res = await fetch('/api/v1/services/' + SVC_ID, { method: 'DELETE' });
+  if (res.ok) location.href = '/services';
+  else { const d = await res.json().catch(()=>({})); toast(d.error || 'Delete failed', 'error'); }
+}
+
+// ── Edit modal ───────────────────────────────────────────────────────────────
+function openEdit()  { document.getElementById('edit-modal').classList.remove('hidden'); }
+function closeEdit() { document.getElementById('edit-modal').classList.add('hidden'); }
+
+async function saveEdit() {
+  const payload = {
+    name:         document.getElementById('e-name').value.trim(),
+    description:  document.getElementById('e-desc').value,
+    project_id:   document.getElementById('e-project').value || null,
+    auto_restart: document.getElementById('e-autorestart').checked,
+    // preserve type so GORM doesn't zero it
+    type: '{{typeStr $svc.Type}}',
+  };
+  const cmd = document.getElementById('e-command');
+  if (cmd) payload.command = cmd.value;
+  const wd = document.getElementById('e-workdir');
+  if (wd) payload.working_dir = wd.value;  // always send even if empty (allows clearing)
+  const hc = document.getElementById('e-health');
+  if (hc) payload.health_url = hc.value;
+  const sd = document.getElementById('e-staticdir');
+  if (sd) payload.static_dir = sd.value;
+  const sp = document.getElementById('e-staticport');
+  if (sp && sp.value) payload.static_port = parseInt(sp.value);
+
+  try {
+    const res = await fetch('/api/v1/services/' + SVC_ID, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      toast('Service updated', 'success');
+      closeEdit();
+      setTimeout(() => location.reload(), 600);
+    } else {
+      toast(data.error || 'Save failed', 'error');
+    }
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Live logs ────────────────────────────────────────────────────────────────
+function toggleLogs() {
+  if (logWs) {
+    logWs.close();
+    return;
+  }
+  const out    = document.getElementById('log-output');
+  const btn    = document.getElementById('log-btn');
   const status = document.getElementById('log-status');
+  const proto  = location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-  ws.onopen = () => {
-    dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
-    status.querySelector('span:last-child').textContent = 'connected';
-    output.innerHTML = '';
+  out.innerHTML = '';
+  logWs = new WebSocket(`${proto}//${location.host}/ws/logs/${SVC_ID}`);
+
+  logWs.onopen = () => {
+    status.textContent = '· connected';
+    status.className = 'text-xs text-emerald-500';
+    btn.textContent = 'Disconnect';
   };
 
-  ws.onmessage = (e) => {
+  logWs.onmessage = (e) => {
     const line = document.createElement('div');
+    line.className = 'py-0.5 border-b border-slate-800/30';
     line.textContent = e.data;
-    output.appendChild(line);
-    if (document.getElementById('autoscroll').checked) {
-      output.scrollTop = output.scrollHeight;
-    }
-    // Limit DOM size
-    if (output.children.length > 2000) {
-      output.removeChild(output.firstChild);
-    }
+    out.appendChild(line);
+    if (autoScroll) out.scrollTop = out.scrollHeight;
   };
 
-  ws.onclose = () => {
-    dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-600';
-    status.querySelector('span:last-child').textContent = 'disconnected';
-    setTimeout(connectLogs, 3000);
+  logWs.onclose = () => {
+    status.textContent = '· disconnected';
+    status.className = 'text-xs text-slate-600';
+    btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Connect`;
+    logWs = null;
   };
 
-  ws.onerror = () => ws.close();
+  logWs.onerror = () => logWs.close();
 }
 
 function clearLogs() {
   document.getElementById('log-output').innerHTML = '';
 }
 
-async function serviceAction(id, action) {
-  try {
-    const res = await fetch(`/api/v1/services/${id}/${action}`, { method: 'POST' });
-    const data = await res.json();
-    if (res.ok) {
-      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: data.status || action, type: 'success' }}));
-    } else {
-      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: data.error || 'Failed', type: 'error' }}));
-    }
-  } catch (e) {
-    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: e.message, type: 'error' }}));
-  }
-}
+// Pause auto-scroll if user scrolls up
+document.getElementById('log-output').addEventListener('scroll', function() {
+  autoScroll = this.scrollTop + this.clientHeight >= this.scrollHeight - 20;
+});
 
-async function confirmDelete(id) {
-  if (!confirm('Delete this service? This cannot be undone.')) return;
-  const res = await fetch(`/api/v1/services/${id}`, { method: 'DELETE' });
-  if (res.ok) {
-    location.href = '/services';
-  }
+// ── Toast helper ─────────────────────────────────────────────────────────────
+function toast(msg, type) {
+  window.dispatchEvent(new CustomEvent('toast', { detail: { msg, type: type || 'info' } }));
 }
-
-connectLogs();
 </script>
 {{end}}

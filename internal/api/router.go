@@ -20,7 +20,6 @@ func NewRouter(database *db.Database, mon *monitor.Monitor, cfg *config.Config) 
 	r.Use(cors.Default())
 
 	h := handlers.New(database, mon, cfg)
-
 	if err := h.SetFS(handlers.GetTemplateFS()); err != nil {
 		log.Fatalf("template init: %v", err)
 	}
@@ -37,8 +36,12 @@ func NewRouter(database *db.Database, mon *monitor.Monitor, cfg *config.Config) 
 		web.GET("/", h.PageDashboard)
 		web.GET("/services", h.PageServices)
 		web.GET("/services/:id", h.PageServiceDetail)
+		web.GET("/projects", h.PageProjects)
+		web.GET("/projects/:id", h.PageProjectDetail)
 		web.GET("/deploy", h.PageDeploy)
 		web.GET("/analytics", h.PageAnalytics)
+		web.GET("/host", h.PageHost)
+		web.GET("/about", h.PageAbout)
 		web.GET("/settings", h.PageSettings)
 	}
 
@@ -72,13 +75,16 @@ func NewRouter(database *db.Database, mon *monitor.Monitor, cfg *config.Config) 
 		api.GET("/analytics/system", h.AnalyticsSystem)
 		api.GET("/events", h.ListEvents)
 		api.GET("/system/stats", h.SystemStats)
+		api.GET("/host/info", h.HostInfo)
+
+		api.GET("/settings", h.GetSettings)
+		api.PUT("/settings", h.SaveSettings)
 	}
 
 	r.GET("/ws/events", authMW, h.WSEvents)
 	r.GET("/ws/logs/:id", authMW, h.WSLogs)
-
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "app": "pikostack"})
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	return r

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -14,12 +15,11 @@ import (
 )
 
 type Handler struct {
-	db       *db.Database
-	mon      *monitor.Monitor
-	cfg      *config.Config
-	baseFS   fs.FS
-	funcMap  template.FuncMap
-	// cache of base+partials content (everything except page templates)
+	db          *db.Database
+	mon         *monitor.Monitor
+	cfg         *config.Config
+	baseFS      fs.FS
+	funcMap     template.FuncMap
 	baseSources []templateSource
 }
 
@@ -32,20 +32,15 @@ func New(database *db.Database, mon *monitor.Monitor, cfg *config.Config) *Handl
 	return &Handler{db: database, mon: mon, cfg: cfg}
 }
 
-func (h *Handler) SetTemplates(_ *template.Template) {
-	// no-op: kept for API compatibility, loading now done via SetFS
-}
+func (h *Handler) SetTemplates(_ *template.Template) {}
 
-// SetFS stores the FS and pre-reads base + partial templates
 func (h *Handler) SetFS(fsys fs.FS) error {
 	h.baseFS = fsys
 	h.funcMap = buildFuncMap()
-
-	err := fs.WalkDir(fsys, "web/templates", func(path string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(fsys, "web/templates", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || filepath.Ext(path) != ".html" {
 			return err
 		}
-		// Only pre-load layouts and partials; pages are loaded per-request
 		name := strings.TrimPrefix(path, "web/templates/")
 		if strings.HasPrefix(name, "pages/") {
 			return nil
@@ -57,22 +52,15 @@ func (h *Handler) SetFS(fsys fs.FS) error {
 		h.baseSources = append(h.baseSources, templateSource{name: name, content: string(content)})
 		return nil
 	})
-	return err
 }
 
-// pageTemplate builds a fresh template set: base+partials + the specific page.
-// This avoids the "last define wins" problem in Go templates.
 func (h *Handler) pageTemplate(pageName string) (*template.Template, error) {
 	t := template.New("").Funcs(h.funcMap)
-
-	// Load base + partials first
 	for _, src := range h.baseSources {
 		if _, err := t.New(src.name).Parse(src.content); err != nil {
 			return nil, err
 		}
 	}
-
-	// Load the specific page template
 	path := "web/templates/" + pageName
 	content, err := fs.ReadFile(h.baseFS, path)
 	if err != nil {
@@ -91,6 +79,13 @@ func (h *Handler) render(c *gin.Context, pageName string, data gin.H) {
 	data["AppName"] = "Pikostack"
 	data["ViewName"] = "Pikoview"
 	data["CurrentPath"] = c.Request.URL.Path
+	data["AuthUser"] = h.cfg.Auth.Username
+	data["AuthEnabled"] = h.cfg.Auth.Enabled
+
+	// Hostname for navbar
+	info := h.mon.GetHostInfo()
+	data["Hostname"] = info["hostname"]
+	data["HostOS"] = info["os"]
 
 	t, err := h.pageTemplate(pageName)
 	if err != nil {
@@ -104,7 +99,6 @@ func (h *Handler) render(c *gin.Context, pageName string, data gin.H) {
 }
 
 func (h *Handler) renderPartial(c *gin.Context, tmplName string, data interface{}) {
-	// Partials are in baseSources, so build a template set without any page
 	t := template.New("").Funcs(h.funcMap)
 	for _, src := range h.baseSources {
 		if _, err := t.New(src.name).Parse(src.content); err != nil {
@@ -118,19 +112,19 @@ func (h *Handler) renderPartial(c *gin.Context, tmplName string, data interface{
 	}
 }
 
-func (h *Handler) ServeStatic(c *gin.Context) {
-	c.Status(http.StatusNotFound)
-}
+func (h *Handler) ServeStatic(c *gin.Context) { c.Status(http.StatusNotFound) }
 
-// LoadTemplates is kept for router.go compatibility — returns a dummy template
 func LoadTemplates(fsys fs.FS) (*template.Template, error) {
 	return template.New("placeholder").Parse("")
 }
 
+// str converts any named string type (ServiceType, ServiceStatus, etc.) to string
+func str(v interface{}) string { return fmt.Sprint(v) }
+
 func buildFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"statusColor": func(status string) string {
-			switch status {
+		"statusColor": func(v interface{}) string {
+			switch str(v) {
 			case "running":
 				return "text-emerald-400"
 			case "stopped":
@@ -143,8 +137,8 @@ func buildFuncMap() template.FuncMap {
 				return "text-slate-400"
 			}
 		},
-		"statusBg": func(status string) string {
-			switch status {
+		"statusBg": func(v interface{}) string {
+			switch str(v) {
 			case "running":
 				return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
 			case "stopped":
@@ -157,8 +151,8 @@ func buildFuncMap() template.FuncMap {
 				return "bg-slate-500/20 text-slate-400 border border-slate-500/30"
 			}
 		},
-		"statusDot": func(status string) string {
-			switch status {
+		"statusDot": func(v interface{}) string {
+			switch str(v) {
 			case "running":
 				return "bg-emerald-400"
 			case "error":
@@ -169,8 +163,10 @@ func buildFuncMap() template.FuncMap {
 				return "bg-slate-500"
 			}
 		},
-		"eventIcon": func(evType string) string {
-			switch evType {
+		"statusLabel": func(v interface{}) string { return str(v) },
+		"typeStr":     func(v interface{}) string { return str(v) },
+		"eventIcon": func(v interface{}) string {
+			switch str(v) {
 			case "start":
 				return "▶"
 			case "stop":
@@ -187,8 +183,8 @@ func buildFuncMap() template.FuncMap {
 				return "•"
 			}
 		},
-		"typeIcon": func(t string) string {
-			switch t {
+		"typeIcon": func(v interface{}) string {
+			switch str(v) {
 			case "docker":
 				return "🐳"
 			case "compose":
@@ -199,19 +195,38 @@ func buildFuncMap() template.FuncMap {
 				return "🔧"
 			case "url":
 				return "🌐"
+			case "static":
+				return "📁"
 			default:
 				return "📦"
 			}
 		},
-		"mul": func(a, b float64) float64 {
-			return a * b
+		"typeBadge": func(v interface{}) string {
+			switch str(v) {
+			case "docker":
+				return "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+			case "compose":
+				return "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+			case "process":
+				return "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+			case "systemd":
+				return "bg-teal-500/20 text-teal-400 border border-teal-500/30"
+			case "url":
+				return "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+			case "static":
+				return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+			default:
+				return "bg-slate-500/20 text-slate-400 border border-slate-500/30"
+			}
 		},
+		"mul": func(a, b float64) float64 { return a * b },
 		"divf": func(a, b int64) float64 {
 			if b == 0 {
 				return 0
 			}
 			return float64(a) / float64(b)
 		},
+		"add": func(a, b int) int { return a + b },
 		"trimPath": func(s string) string {
 			parts := strings.Split(s, "/")
 			if len(parts) > 0 {
@@ -225,5 +240,9 @@ func buildFuncMap() template.FuncMap {
 			}
 			return ""
 		},
+		"hasPrefix": func(s, prefix string) bool {
+			return strings.HasPrefix(s, prefix)
+		},
+		"slice": func(args ...string) []string { return args },
 	}
 }

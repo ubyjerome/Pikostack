@@ -6,8 +6,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"net"
 	"os/exec"
+	"strconv"
 	"strings"
+	"syscall"
 	"sync"
 	"time"
 
@@ -15,6 +18,7 @@ import (
 	"github.com/pikostack/pikostack/internal/db"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/load"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/process"
@@ -146,7 +150,8 @@ func (m *Monitor) checkService(svc *db.Service) {
 		Time:      time.Now(),
 	})
 
-	if !ok && !svc.WatchOnly && svc.AutoRestart {
+	// Only auto-restart if the service was previously running (not just deployed)
+	if !ok && !svc.WatchOnly && svc.AutoRestart && svc.Status == db.StatusRunning {
 		m.handleUnhealthy(svc)
 	}
 
@@ -172,6 +177,8 @@ func (m *Monitor) probeService(svc *db.Service) (bool, string) {
 		return m.probeProcess(svc)
 	case db.ServiceTypeSystemd:
 		return m.probeSystemd(svc)
+	case db.ServiceTypeStatic:
+		return m.probeStatic(svc)
 	}
 	return false, "unknown service type"
 }
@@ -242,6 +249,25 @@ func (m *Monitor) probeCompose(svc *db.Service) (bool, string) {
 }
 
 func (m *Monitor) probeProcess(svc *db.Service) (bool, string) {
+	// First check in-memory procs map (authoritative for this session)
+	m.mu.RLock()
+	cmd, inMap := m.procs[svc.ID]
+	m.mu.RUnlock()
+	if inMap && cmd.Process != nil {
+		p, err := process.NewProcess(int32(cmd.Process.Pid))
+		if err == nil {
+			running, err := p.IsRunning()
+			if err == nil && running {
+				return true, "OK"
+			}
+		}
+		// Process in map but dead — clean up
+		m.mu.Lock()
+		delete(m.procs, svc.ID)
+		m.mu.Unlock()
+		return false, "process exited"
+	}
+	// Fall back to DB-stored PID (e.g. after monitor restart)
 	if svc.PID > 0 {
 		p, err := process.NewProcess(int32(svc.PID))
 		if err != nil {
@@ -253,8 +279,12 @@ func (m *Monitor) probeProcess(svc *db.Service) (bool, string) {
 		}
 		return true, "OK"
 	}
-	// No PID tracked yet
-	return false, "no pid tracked"
+	// Nothing tracked — only restart if status was previously running
+	if svc.Status == db.StatusRunning {
+		return false, "no pid tracked"
+	}
+	// Freshly deployed and never started — don't auto-restart, just report stopped
+	return false, "not started"
 }
 
 func (m *Monitor) probeSystemd(svc *db.Service) (bool, string) {
@@ -328,6 +358,8 @@ func (m *Monitor) StartService(svc *db.Service) error {
 		err = m.startProcess(svc)
 	case db.ServiceTypeSystemd:
 		err = exec.Command("systemctl", "start", svc.SystemdUnit).Run()
+	case db.ServiceTypeStatic:
+		err = m.startStatic(svc)
 	default:
 		err = fmt.Errorf("cannot start type %s", svc.Type)
 	}
@@ -354,10 +386,19 @@ func (m *Monitor) StopService(svc *db.Service) error {
 	case db.ServiceTypeProcess:
 		m.mu.Lock()
 		cmd, ok := m.procs[svc.ID]
-		m.mu.Unlock()
 		if ok && cmd.Process != nil {
-			err = cmd.Process.Signal(os.Interrupt)
+			syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+			cmd.Process.Signal(os.Interrupt)
 		}
+		delete(m.procs, svc.ID)
+		m.mu.Unlock()
+	case db.ServiceTypeStatic:
+		m.mu.Lock()
+		if cmd, ok := m.procs[svc.ID]; ok && cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		delete(m.procs, svc.ID)
+		m.mu.Unlock()
 	case db.ServiceTypeSystemd:
 		err = exec.Command("systemctl", "stop", svc.SystemdUnit).Run()
 	}
@@ -422,20 +463,29 @@ func (m *Monitor) startProcess(svc *db.Service) error {
 	if svc.Command == "" {
 		return fmt.Errorf("no command configured for process service")
 	}
-	parts := strings.Fields(svc.Command)
-	cmd := exec.Command(parts[0], parts[1:]...)
+	// Run via bash so PATH, shell aliases, and npm scripts all resolve correctly
+	cmd := exec.Command("bash", "-c", svc.Command)
 	if svc.WorkingDir != "" {
 		cmd.Dir = svc.WorkingDir
 	}
+	// Inherit the parent environment so node/npm/python etc are on PATH
+	cmd.Env = append(os.Environ())
+	// Put the process in its own group so we can kill all children (e.g. npm spawning node)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	pid := cmd.Process.Pid
 	m.mu.Lock()
 	m.procs[svc.ID] = cmd
 	m.mu.Unlock()
-	m.db.UpdateServiceStatus(svc.ID, db.StatusRunning, cmd.Process.Pid)
+	m.db.UpdateServiceStatus(svc.ID, db.StatusRunning, pid)
 	go func() {
 		cmd.Wait()
+		m.mu.Lock()
+		delete(m.procs, svc.ID)
+		m.mu.Unlock()
 		m.db.UpdateServiceStatus(svc.ID, db.StatusStopped, 0)
 		m.broadcast(EventBroadcast{ServiceID: svc.ID, Type: "crash", Message: "process exited", Time: time.Now()})
 	}()
@@ -445,9 +495,13 @@ func (m *Monitor) startProcess(svc *db.Service) error {
 func (m *Monitor) restartProcess(svc *db.Service) error {
 	m.mu.Lock()
 	if cmd, ok := m.procs[svc.ID]; ok && cmd.Process != nil {
+		// Kill the entire process group (catches npm-spawned node, etc.)
+		syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		cmd.Process.Kill()
 	}
+	delete(m.procs, svc.ID)
 	m.mu.Unlock()
+	time.Sleep(500 * time.Millisecond)
 	return m.startProcess(svc)
 }
 
@@ -559,4 +613,168 @@ func (m *Monitor) ReloadInterval(d time.Duration) {
 	case m.reloadCh <- d:
 	default:
 	}
+}
+
+// GetHostInfo returns static host metadata
+func (m *Monitor) GetHostInfo() map[string]interface{} {
+	info := map[string]interface{}{}
+
+	if hi, err := host.Info(); err == nil {
+		info["hostname"] = hi.Hostname
+		info["os"] = hi.OS
+		info["platform"] = hi.Platform
+		info["platform_version"] = hi.PlatformVersion
+		info["kernel"] = hi.KernelVersion
+		info["arch"] = hi.KernelArch
+		info["uptime"] = hi.Uptime
+		info["boot_time"] = hi.BootTime
+		info["procs"] = hi.Procs
+		info["virtualization"] = hi.VirtualizationSystem
+	}
+
+	if cpuInfo, err := cpu.Info(); err == nil && len(cpuInfo) > 0 {
+		info["cpu_model"] = cpuInfo[0].ModelName
+		info["cpu_cores"] = cpuInfo[0].Cores
+	}
+	if counts, err := cpu.Counts(true); err == nil {
+		info["cpu_threads"] = counts
+	}
+
+	if vmem, err := mem.VirtualMemory(); err == nil {
+		info["mem_total"] = vmem.Total
+		info["mem_used"] = vmem.Used
+		info["mem_free"] = vmem.Free
+		info["mem_pct"] = fmt.Sprintf("%.1f", vmem.UsedPercent)
+	}
+
+	if dsk, err := disk.Usage("/"); err == nil {
+		info["disk_total"] = dsk.Total
+		info["disk_used"] = dsk.Used
+		info["disk_free"] = dsk.Free
+		info["disk_pct"] = fmt.Sprintf("%.1f", dsk.UsedPercent)
+	}
+
+	if partitions, err := disk.Partitions(false); err == nil {
+		var parts []map[string]interface{}
+		for _, p := range partitions {
+			u, err := disk.Usage(p.Mountpoint)
+			if err != nil {
+				continue
+			}
+			parts = append(parts, map[string]interface{}{
+				"device":     p.Device,
+				"mountpoint": p.Mountpoint,
+				"fstype":     p.Fstype,
+				"total":      u.Total,
+				"used":       u.Used,
+				"free":       u.Free,
+				"pct":        fmt.Sprintf("%.1f", u.UsedPercent),
+			})
+		}
+		info["partitions"] = parts
+	}
+
+	return info
+}
+
+// fmtBytes converts bytes to a human-readable string
+func FmtBytes(b uint64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := uint64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// ─── Static file server ───────────────────────────────────────────────────────
+
+func (m *Monitor) probeStatic(svc *db.Service) (bool, string) {
+	port := svc.StaticPort
+	if port == 0 {
+		port = 8080
+	}
+	// Check if our server proc is alive
+	m.mu.RLock()
+	cmd, ok := m.procs[svc.ID]
+	m.mu.RUnlock()
+	if ok && cmd.Process != nil {
+		// Quick TCP dial to confirm it's accepting
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:"+strconv.Itoa(port), 2*time.Second)
+		if err == nil {
+			conn.Close()
+			return true, "OK"
+		}
+		return false, "port not responding"
+	}
+	return false, "no pid tracked"
+}
+
+func (m *Monitor) startStatic(svc *db.Service) error {
+	dir := svc.StaticDir
+	if dir == "" {
+		dir = "."
+	}
+	port := svc.StaticPort
+	if port == 0 {
+		port = 8080
+	}
+	addr := ":" + strconv.Itoa(port)
+
+	// Use Python's built-in http.server if available, else Go's own http.FileServer
+	// Try Python 3 first (available on most Linux servers)
+	pythonCmd := fmt.Sprintf("python3 -m http.server %d --directory '%s'", port, dir)
+	cmd := exec.Command("bash", "-c", pythonCmd)
+	cmd.Env = append(os.Environ())
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	if err := cmd.Start(); err != nil {
+		// Fall back: spawn a goroutine with Go's own file server
+		return m.startGoFileServer(svc, dir, addr)
+	}
+
+	m.mu.Lock()
+	m.procs[svc.ID] = cmd
+	m.mu.Unlock()
+	m.db.UpdateServiceStatus(svc.ID, db.StatusRunning, cmd.Process.Pid)
+	go func() {
+		cmd.Wait()
+		m.mu.Lock()
+		delete(m.procs, svc.ID)
+		m.mu.Unlock()
+		m.db.UpdateServiceStatus(svc.ID, db.StatusStopped, 0)
+		m.broadcast(EventBroadcast{ServiceID: svc.ID, Type: "crash", Message: "static server exited", Time: time.Now()})
+	}()
+	return nil
+}
+
+func (m *Monitor) startGoFileServer(svc *db.Service, dir, addr string) error {
+	// Store a sentinel in procs so probeStatic can see it
+	// The actual listener runs in a goroutine
+	srv := &http.Server{Addr: addr, Handler: http.FileServer(http.Dir(dir))}
+	log.Printf("monitor: starting Go file server for %s at %s serving %s", svc.Name, addr, dir)
+	m.db.UpdateServiceStatus(svc.ID, db.StatusRunning, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			m.db.UpdateServiceStatus(svc.ID, db.StatusError, 0)
+			m.broadcast(EventBroadcast{ServiceID: svc.ID, Type: "crash", Message: "file server error: " + err.Error(), Time: time.Now()})
+		}
+	}()
+	return nil
+}
+
+func (m *Monitor) restartStatic(svc *db.Service) error {
+	m.mu.Lock()
+	if cmd, ok := m.procs[svc.ID]; ok && cmd.Process != nil {
+		syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		cmd.Process.Kill()
+	}
+	delete(m.procs, svc.ID)
+	m.mu.Unlock()
+	time.Sleep(300 * time.Millisecond)
+	return m.startStatic(svc)
 }

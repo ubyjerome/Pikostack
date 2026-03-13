@@ -1,0 +1,77 @@
+{{template "layouts/base.html" .}}
+{{define "content"}}
+<div class="max-w-2xl mx-auto">
+
+  <div class="text-center mb-10">
+    <div class="w-16 h-16 rounded-2xl bg-brand-600 flex items-center justify-center mx-auto mb-4">
+      <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <h1 class="text-3xl font-bold text-white">Pikostack</h1>
+    <p class="text-slate-400 mt-2">Single-binary VPS service management</p>
+    <span class="inline-block mt-3 px-3 py-1 bg-brand-600/20 text-brand-400 border border-brand-600/30 rounded-full text-sm font-mono">v0.1.0</span>
+  </div>
+
+  <div class="space-y-4">
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      <h2 class="text-sm font-semibold text-white mb-3">What is Pikostack?</h2>
+      <p class="text-sm text-slate-400 leading-relaxed">
+        Pikostack is a self-hosted service management platform that runs as a single binary. It monitors Docker containers, raw processes, systemd units, and remote URLs - restarting them automatically when they fail. Pikoview is its web dashboard.
+      </p>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      <h2 class="text-sm font-semibold text-white mb-4">Features</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {{range $feat := slice "Auto-restart on failure" "Live log streaming" "Health check probing" "Docker & Compose support" "Systemd unit management" "Process management" "URL watchdogs" "Analytics & metrics" "TUI interface" "REST API" "SQLite - no external DB" "Single binary deploy"}}
+        <div class="flex items-center gap-2.5 text-sm">
+          <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          <span class="text-slate-300">{{$feat}}</span>
+        </div>
+        {{end}}
+      </div>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      <h2 class="text-sm font-semibold text-white mb-4">Stack</h2>
+      <div class="flex flex-wrap gap-2">
+        {{range $tech := slice "Go 1.22" "Gin" "GORM + SQLite" "Bubble Tea" "HTMX" "Alpine.js" "Tailwind CSS" "Chart.js" "gopsutil" "gorilla/websocket" "Cobra + Viper"}}
+        <span class="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg font-mono">{{$tech}}</span>
+        {{end}}
+      </div>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      <h2 class="text-sm font-semibold text-white mb-4">Links</h2>
+      <div class="space-y-3">
+        <a href="https://github.com/ubyjerome/pikostack" target="_blank" rel="noopener"
+           class="flex items-center gap-3 px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+          <svg class="w-5 h-5 text-slate-400 group-hover:text-white transition-colors flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/>
+          </svg>
+          <div>
+            <div class="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">GitHub Repository</div>
+            <div class="text-xs text-slate-500">github.com/ubyjerome/pikostack</div>
+          </div>
+          <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </a>
+        <a href="https://github.com/pikostack/ubyjerome/issues" target="_blank" rel="noopener"
+           class="flex items-center gap-3 px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+          <svg class="w-5 h-5 text-slate-400 group-hover:text-white transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div>
+            <div class="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">Report an Issue</div>
+            <div class="text-xs text-slate-500">github.com/ubyjerome/pikostack/issues</div>
+          </div>
+          <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="text-center py-4 text-xs text-slate-600">
+      Built with Go · MIT License · {{.AppName}} {{.ViewName}}
+    </div>
+  </div>
+</div>
+{{end}}
