@@ -1,0 +1,16 @@
+auth:
+    enabled: false
+    password: lorem
+    username: admin
+database:
+    path: ./pikostack.db
+monitor:
+    events_retention_days: 30
+    grace_period: 30s
+    interval: 15s
+    max_restarts: 5
+    metrics_retention_days: 7
+server:
+    host: 0.0.0.0
+    port: 7331
+    secret: change-me-in-production

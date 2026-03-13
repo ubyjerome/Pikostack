@@ -1,0 +1,435 @@
+{{template "layouts/base.html" .}}
+
+{{define "content"}}
+<div class="max-w-3xl mx-auto space-y-6">
+
+  <div class="mb-2">
+    <h2 class="text-xl font-semibold text-white tracking-tight">Settings</h2>
+    <p class="text-sm text-slate-400 mt-1">Changes to monitor config take effect immediately. Auth changes require restart.</p>
+  </div>
+
+  <!-- ── Monitor config ──────────────────────────────────────────────────── -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div>
+        <h3 class="text-sm font-semibold text-white">Monitor</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Health check polling and restart behaviour</p>
+      </div>
+      <span class="text-xs text-slate-600 font-mono">live — no restart needed</span>
+    </div>
+
+    <form id="monitor-form" onsubmit="saveMonitor(event)" class="divide-y divide-slate-800/60">
+
+      <div class="px-5 py-4 grid grid-cols-3 items-center gap-4">
+        <div>
+          <label class="text-sm text-slate-300 font-medium">Poll Interval</label>
+          <p class="text-xs text-slate-500 mt-0.5">How often each service is health-checked</p>
+        </div>
+        <div class="col-span-2 flex items-center gap-3">
+          <input type="number" id="interval-val" min="5" max="3600" value="15"
+                 class="w-24 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2 text-center
+                        focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 outline-none transition">
+          <select id="interval-unit"
+                  class="bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2
+                         focus:border-brand-500 outline-none">
+            <option value="s">seconds</option>
+            <option value="m" selected>minutes</option>
+            <option value="h">hours</option>
+          </select>
+          <span class="text-xs text-slate-600 font-mono" id="interval-preview">= 15m0s</span>
+        </div>
+      </div>
+
+      <div class="px-5 py-4 grid grid-cols-3 items-center gap-4">
+        <div>
+          <label class="text-sm text-slate-300 font-medium">Grace Period</label>
+          <p class="text-xs text-slate-500 mt-0.5">Wait before triggering auto-restart</p>
+        </div>
+        <div class="col-span-2 flex items-center gap-3">
+          <input type="number" id="grace-val" min="0" max="3600" value="30"
+                 class="w-24 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2 text-center
+                        focus:border-brand-500 outline-none transition">
+          <select id="grace-unit"
+                  class="bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2
+                         focus:border-brand-500 outline-none">
+            <option value="s" selected>seconds</option>
+            <option value="m">minutes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="px-5 py-4 grid grid-cols-3 items-center gap-4">
+        <div>
+          <label class="text-sm text-slate-300 font-medium">Max Auto-Restarts</label>
+          <p class="text-xs text-slate-500 mt-0.5">Per service before giving up</p>
+        </div>
+        <div class="col-span-2">
+          <input type="number" id="max-restarts" min="1" max="100" value="5"
+                 class="w-24 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2 text-center
+                        focus:border-brand-500 outline-none transition">
+        </div>
+      </div>
+
+      <div class="px-5 py-4 grid grid-cols-3 items-center gap-4">
+        <div>
+          <label class="text-sm text-slate-300 font-medium">Metrics Retention</label>
+          <p class="text-xs text-slate-500 mt-0.5">How long to keep per-service metrics</p>
+        </div>
+        <div class="col-span-2 flex items-center gap-3">
+          <input type="number" id="metrics-retention" min="1" max="365" value="7"
+                 class="w-24 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2 text-center
+                        focus:border-brand-500 outline-none transition">
+          <span class="text-sm text-slate-500">days</span>
+        </div>
+      </div>
+
+      <div class="px-5 py-4 grid grid-cols-3 items-center gap-4">
+        <div>
+          <label class="text-sm text-slate-300 font-medium">Events Retention</label>
+          <p class="text-xs text-slate-500 mt-0.5">How long to keep event history</p>
+        </div>
+        <div class="col-span-2 flex items-center gap-3">
+          <input type="number" id="events-retention" min="1" max="365" value="30"
+                 class="w-24 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2 text-center
+                        focus:border-brand-500 outline-none transition">
+          <span class="text-sm text-slate-500">days</span>
+        </div>
+      </div>
+
+      <div class="px-5 py-4 flex items-center justify-between">
+        <span class="text-xs text-slate-600" id="monitor-save-status"></span>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Save & Apply
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Auth config ─────────────────────────────────────────────────────── -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-800">
+      <h3 class="text-sm font-semibold text-white">Authentication</h3>
+      <p class="text-xs text-slate-500 mt-0.5">HTTP Basic Auth for Pikoview and API — restart required</p>
+    </div>
+    <form id="auth-form" onsubmit="saveAuth(event)" class="divide-y divide-slate-800/60">
+      <div class="px-5 py-4 grid grid-cols-3 items-center gap-4">
+        <label class="text-sm text-slate-300 font-medium">Enable Auth</label>
+        <div class="col-span-2">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" id="auth-enabled" {{if .Cfg.Auth.Enabled}}checked{{end}}
+                   class="w-4 h-4 accent-brand-600">
+            <span class="text-sm text-slate-400">Require username and password to access Pikoview</span>
+          </label>
+        </div>
+      </div>
+      <div class="px-5 py-4 grid grid-cols-3 items-center gap-4">
+        <label class="text-sm text-slate-300 font-medium">Username</label>
+        <div class="col-span-2">
+          <input type="text" id="auth-username" value="{{.Cfg.Auth.Username}}"
+                 class="w-64 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2
+                        focus:border-brand-500 outline-none transition">
+        </div>
+      </div>
+      <div class="px-5 py-4 grid grid-cols-3 items-center gap-4">
+        <label class="text-sm text-slate-300 font-medium">Password</label>
+        <div class="col-span-2">
+          <input type="password" id="auth-password" placeholder="Leave blank to keep current"
+                 class="w-64 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2
+                        focus:border-brand-500 outline-none transition">
+        </div>
+      </div>
+      <div class="px-5 py-4 flex justify-end">
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Save Auth
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Projects ────────────────────────────────────────────────────────── -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div>
+        <h3 class="text-sm font-semibold text-white">Projects</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Group related services together</p>
+      </div>
+      <button onclick="document.getElementById('new-project-form').classList.toggle('hidden')"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors border border-slate-700">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        New Project
+      </button>
+    </div>
+
+    <!-- Create project form -->
+    <div id="new-project-form" class="hidden px-5 py-4 bg-slate-800/40 border-b border-slate-800">
+      <div class="flex items-end gap-3">
+        <div class="flex-1">
+          <label class="block text-xs text-slate-400 mb-1.5">Project Name</label>
+          <input type="text" id="new-project-name" placeholder="my-app, backend, infra…"
+                 class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2
+                        focus:border-brand-500 outline-none transition">
+        </div>
+        <div class="flex-1">
+          <label class="block text-xs text-slate-400 mb-1.5">Description</label>
+          <input type="text" id="new-project-desc" placeholder="Optional"
+                 class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2
+                        focus:border-brand-500 outline-none transition">
+        </div>
+        <button onclick="createProject()"
+                class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0">
+          Create
+        </button>
+      </div>
+    </div>
+
+    <!-- Projects list -->
+    <div id="projects-list" class="divide-y divide-slate-800/60">
+      {{range .Projects}}
+      <div class="px-5 py-3.5 flex items-center justify-between group" id="project-{{.ID}}">
+        <div>
+          <div class="text-sm font-medium text-slate-200">{{.Name}}</div>
+          {{if .Description}}<div class="text-xs text-slate-500 mt-0.5">{{.Description}}</div>{{end}}
+          <div class="text-xs text-slate-600 mt-0.5 font-mono">{{.ID}}</div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-500">
+            {{len .Services}} service{{if ne (len .Services) 1}}s{{end}}
+          </span>
+          <button onclick="deleteProject('{{.ID}}', '{{.Name}}')"
+                  class="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 rounded transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+      {{else}}
+      <div id="projects-empty" class="px-5 py-10 text-center">
+        <p class="text-slate-500 text-sm">No projects yet. Create one to group your services.</p>
+      </div>
+      {{end}}
+    </div>
+  </div>
+
+  <!-- ── Server info (read-only) ─────────────────────────────────────────── -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-800">
+      <h3 class="text-sm font-semibold text-white">Server Info</h3>
+    </div>
+    <dl class="divide-y divide-slate-800/60">
+      <div class="px-5 py-3.5 grid grid-cols-3">
+        <dt class="text-sm text-slate-400">Bind Address</dt>
+        <dd class="col-span-2 text-sm text-slate-200 font-mono">{{.Cfg.Server.Host}}:{{.Cfg.Server.Port}}</dd>
+      </div>
+      <div class="px-5 py-3.5 grid grid-cols-3">
+        <dt class="text-sm text-slate-400">Database</dt>
+        <dd class="col-span-2 text-sm text-slate-200 font-mono">{{.Cfg.Database.Path}}</dd>
+      </div>
+      <div class="px-5 py-3.5 grid grid-cols-3">
+        <dt class="text-sm text-slate-400">Config File</dt>
+        <dd class="col-span-2 text-sm text-slate-200 font-mono">pikostack.yaml</dd>
+      </div>
+    </dl>
+  </div>
+
+</div>
+
+<script>
+// ── Load current settings on page load ──────────────────────────────────────
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/v1/settings');
+    if (!res.ok) return;
+    const s = await res.json();
+    const m = s.monitor;
+
+    // Parse interval into value + unit
+    const iv = parseDuration(m.interval);
+    document.getElementById('interval-val').value = iv.value;
+    document.getElementById('interval-unit').value = iv.unit;
+    updateIntervalPreview();
+
+    const gp = parseDuration(m.grace_period);
+    document.getElementById('grace-val').value = gp.value;
+    document.getElementById('grace-unit').value = gp.unit;
+
+    document.getElementById('max-restarts').value = m.max_restarts;
+    document.getElementById('metrics-retention').value = m.metrics_retention_days;
+    document.getElementById('events-retention').value = m.events_retention_days;
+  } catch(_) {}
+}
+
+function parseDuration(str) {
+  // Parses Go duration strings like "15s", "2m0s", "1h0m0s"
+  if (!str) return { value: 15, unit: 's' };
+  const hm = str.match(/^(\d+)h/);
+  const mm = str.match(/(?:^|h)(\d+)m/);
+  const sm = str.match(/(?:^|m)(\d+)s?$/);
+
+  if (hm) return { value: parseInt(hm[1]), unit: 'h' };
+  if (mm && parseInt(mm[1]) > 0) return { value: parseInt(mm[1]), unit: 'm' };
+  if (sm) return { value: parseInt(sm[1]), unit: 's' };
+  return { value: 15, unit: 's' };
+}
+
+function buildDuration(val, unit) {
+  return val + unit;
+}
+
+function updateIntervalPreview() {
+  const val = document.getElementById('interval-val').value;
+  const unit = document.getElementById('interval-unit').value;
+  document.getElementById('interval-preview').textContent = '= ' + val + unit;
+}
+
+document.getElementById('interval-val').addEventListener('input', updateIntervalPreview);
+document.getElementById('interval-unit').addEventListener('change', updateIntervalPreview);
+
+// ── Save monitor settings ────────────────────────────────────────────────────
+async function saveMonitor(e) {
+  e.preventDefault();
+  const interval = buildDuration(
+    document.getElementById('interval-val').value,
+    document.getElementById('interval-unit').value
+  );
+  const gracePeriod = buildDuration(
+    document.getElementById('grace-val').value,
+    document.getElementById('grace-unit').value
+  );
+
+  const payload = {
+    monitor: {
+      interval: interval,
+      grace_period: gracePeriod,
+      max_restarts: parseInt(document.getElementById('max-restarts').value),
+      metrics_retention_days: parseInt(document.getElementById('metrics-retention').value),
+      events_retention_days: parseInt(document.getElementById('events-retention').value),
+    }
+  };
+
+  try {
+    const res = await fetch('/api/v1/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const status = document.getElementById('monitor-save-status');
+      status.textContent = '✓ Saved and applied';
+      status.className = 'text-xs text-emerald-400';
+      setTimeout(() => { status.textContent = ''; }, 3000);
+      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Monitor settings applied', type: 'success' }}));
+    } else {
+      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: data.error || 'Save failed', type: 'error' }}));
+    }
+  } catch(err) {
+    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: err.message, type: 'error' }}));
+  }
+}
+
+// ── Save auth settings ───────────────────────────────────────────────────────
+async function saveAuth(e) {
+  e.preventDefault();
+  const payload = {
+    auth: {
+      enabled: document.getElementById('auth-enabled').checked,
+      username: document.getElementById('auth-username').value,
+      password: document.getElementById('auth-password').value,
+    }
+  };
+  try {
+    const res = await fetch('/api/v1/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Auth saved — restart Pikostack to apply', type: 'success' }}));
+      document.getElementById('auth-password').value = '';
+    } else {
+      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: data.error || 'Save failed', type: 'error' }}));
+    }
+  } catch(err) {
+    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: err.message, type: 'error' }}));
+  }
+}
+
+// ── Projects ────────────────────────────────────────────────────────────────
+async function createProject() {
+  const name = document.getElementById('new-project-name').value.trim();
+  const desc = document.getElementById('new-project-desc').value.trim();
+  if (!name) {
+    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: 'Project name is required', type: 'error' }}));
+    return;
+  }
+  try {
+    const res = await fetch('/api/v1/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: desc })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      // Inject new row into the list without reload
+      const empty = document.getElementById('projects-empty');
+      if (empty) empty.remove();
+
+      const list = document.getElementById('projects-list');
+      const row = document.createElement('div');
+      row.id = 'project-' + data.id;
+      row.className = 'px-5 py-3.5 flex items-center justify-between group';
+      row.innerHTML = `
+        <div>
+          <div class="text-sm font-medium text-slate-200">${escHtml(data.name)}</div>
+          ${data.description ? `<div class="text-xs text-slate-500 mt-0.5">${escHtml(data.description)}</div>` : ''}
+          <div class="text-xs text-slate-600 mt-0.5 font-mono">${data.id}</div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-500">0 services</span>
+          <button onclick="deleteProject('${data.id}', '${escHtml(data.name)}')"
+                  class="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 rounded transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>`;
+      list.appendChild(row);
+
+      document.getElementById('new-project-name').value = '';
+      document.getElementById('new-project-desc').value = '';
+      document.getElementById('new-project-form').classList.add('hidden');
+      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: `Project "${data.name}" created`, type: 'success' }}));
+    } else {
+      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: data.error || 'Create failed', type: 'error' }}));
+    }
+  } catch(err) {
+    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: err.message, type: 'error' }}));
+  }
+}
+
+async function deleteProject(id, name) {
+  if (!confirm(`Delete project "${name}"? Services in this project will be unassigned, not deleted.`)) return;
+  try {
+    const res = await fetch('/api/v1/projects/' + id, { method: 'DELETE' });
+    if (res.ok) {
+      document.getElementById('project-' + id)?.remove();
+      if (!document.querySelector('#projects-list [id^="project-"]')) {
+        document.getElementById('projects-list').innerHTML =
+          '<div id="projects-empty" class="px-5 py-10 text-center"><p class="text-slate-500 text-sm">No projects yet.</p></div>';
+      }
+      window.dispatchEvent(new CustomEvent('toast', { detail: { msg: `Project "${name}" deleted`, type: 'success' }}));
+    }
+  } catch(err) {
+    window.dispatchEvent(new CustomEvent('toast', { detail: { msg: err.message, type: 'error' }}));
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadSettings();
+</script>
+{{end}}

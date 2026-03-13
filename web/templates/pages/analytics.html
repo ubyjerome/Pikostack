@@ -1,0 +1,193 @@
+{{template "layouts/base.html" .}}
+
+{{define "content"}}
+<div class="mb-6">
+  <h2 class="text-xl font-semibold text-white">Analytics</h2>
+  <p class="text-sm text-slate-400 mt-1">System and service health metrics</p>
+</div>
+
+<!-- Summary cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  {{$s := .Summary}}
+  {{if $s}}
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 mb-1">Uptime Rate</div>
+    <div class="text-2xl font-bold text-emerald-400">
+      {{if $s.Total}}{{printf "%.0f" (mul (divf $s.Running $s.Total) 100.0)}}%{{else}}—{{end}}
+    </div>
+    <div class="text-xs text-slate-500 mt-1">across all services</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 mb-1">Total Services</div>
+    <div class="text-2xl font-bold text-white">{{$s.Total}}</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 mb-1">Healthy</div>
+    <div class="text-2xl font-bold text-emerald-400">{{$s.Running}}</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 mb-1">Unhealthy</div>
+    <div class="text-2xl font-bold text-rose-400">{{$s.Error}}</div>
+  </div>
+  {{end}}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- CPU chart -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-semibold text-slate-300">Host CPU Usage</h3>
+      <span class="text-xs text-slate-500">Last 24h</span>
+    </div>
+    <canvas id="cpu-chart" height="180"></canvas>
+  </div>
+
+  <!-- Memory chart -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-semibold text-slate-300">Host Memory Usage</h3>
+      <span class="text-xs text-slate-500">Last 24h</span>
+    </div>
+    <canvas id="mem-chart" height="180"></canvas>
+  </div>
+
+  <!-- Service status distribution -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-semibold text-slate-300">Service Status Distribution</h3>
+    </div>
+    <div class="flex items-center justify-around">
+      <canvas id="donut-chart" width="180" height="180"></canvas>
+      <div class="space-y-3">
+        {{$s := .Summary}}{{if $s}}
+        <div class="flex items-center gap-2 text-sm">
+          <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+          <span class="text-slate-300">Running</span>
+          <span class="ml-auto text-slate-400 font-mono">{{$s.Running}}</span>
+        </div>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="w-3 h-3 rounded-full bg-slate-500"></span>
+          <span class="text-slate-300">Stopped</span>
+          <span class="ml-auto text-slate-400 font-mono">{{$s.Stopped}}</span>
+        </div>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="w-3 h-3 rounded-full bg-rose-400"></span>
+          <span class="text-slate-300">Error</span>
+          <span class="ml-auto text-slate-400 font-mono">{{$s.Error}}</span>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <!-- Services uptime table -->
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-semibold text-slate-300">Service Health</h3>
+    </div>
+    <div class="space-y-2">
+      {{range .Services}}
+      <div class="flex items-center justify-between py-2 border-b border-slate-800/60 last:border-0">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full {{statusDot .Status | html}}"></span>
+          <span class="text-sm text-slate-300">{{.Name}}</span>
+          <span class="text-xs text-slate-600">{{.Type}}</span>
+        </div>
+        <div class="flex items-center gap-4 text-xs">
+          <span class="text-slate-500">Restarts: <span class="text-slate-300 font-mono">{{.RestartCount}}</span></span>
+          <span class="{{if .LastHealthOK}}text-emerald-400{{else}}text-rose-400{{end}}">
+            {{if .LastHealthOK}}Healthy{{else}}Unhealthy{{end}}
+          </span>
+        </div>
+      </div>
+      {{else}}
+      <p class="text-slate-600 text-sm text-center py-8">No services to analyze</p>
+      {{end}}
+    </div>
+  </div>
+</div>
+
+<script>
+// Parse system metrics from server
+const sysMetrics = {{if .SysMetrics}}JSON.parse('{{js .SysMetrics}}'){{else}}[]{{end}};
+
+const labels = sysMetrics.map(m => new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}));
+const cpuData = sysMetrics.map(m => m.cpu);
+const memData = sysMetrics.map(m => (m.mem_used / m.mem_total * 100).toFixed(1));
+
+const chartDefaults = {
+  responsive: true,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: {
+      ticks: { color: '#6B7280', maxTicksLimit: 8 },
+      grid: { color: '#1F2937' }
+    },
+    y: {
+      ticks: { color: '#6B7280' },
+      grid: { color: '#1F2937' },
+      min: 0,
+      max: 100
+    }
+  }
+};
+
+new Chart(document.getElementById('cpu-chart'), {
+  type: 'line',
+  data: {
+    labels: labels.length ? labels : Array(10).fill(''),
+    datasets: [{
+      data: cpuData.length ? cpuData : Array(10).fill(0),
+      borderColor: '#8b5cf6',
+      backgroundColor: 'rgba(139,92,246,0.1)',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 0,
+      borderWidth: 2,
+    }]
+  },
+  options: chartDefaults
+});
+
+new Chart(document.getElementById('mem-chart'), {
+  type: 'line',
+  data: {
+    labels: labels.length ? labels : Array(10).fill(''),
+    datasets: [{
+      data: memData.length ? memData : Array(10).fill(0),
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16,185,129,0.1)',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 0,
+      borderWidth: 2,
+    }]
+  },
+  options: chartDefaults
+});
+
+// Donut chart
+{{$s := .Summary}}
+const total = {{if $s}}{{$s.Total}}{{else}}1{{end}};
+const running = {{if $s}}{{$s.Running}}{{else}}0{{end}};
+const stopped = {{if $s}}{{$s.Stopped}}{{else}}0{{end}};
+const errored = {{if $s}}{{$s.Error}}{{else}}0{{end}};
+
+new Chart(document.getElementById('donut-chart'), {
+  type: 'doughnut',
+  data: {
+    datasets: [{
+      data: [running || 1, stopped, errored],
+      backgroundColor: ['#10b981', '#6b7280', '#ef4444'],
+      borderWidth: 0,
+      hoverOffset: 4,
+    }]
+  },
+  options: {
+    cutout: '72%',
+    plugins: { legend: { display: false } },
+  }
+});
+</script>
+{{end}}
